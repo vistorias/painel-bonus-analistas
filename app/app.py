@@ -610,7 +610,10 @@ with st.sidebar:
 """,
         unsafe_allow_html=True,
     )
-
+    st.markdown('<div class="sb-divider"></div>', unsafe_allow_html=True)
+    if st.button("Sair", use_container_width=True):
+        st.session_state["autenticado"] = False
+        st.rerun()
 # ===================== CONTEÚDO =====================
 dados_view = dados_calc.copy()
 
@@ -727,4 +730,5 @@ with right:
             )
 
     st.markdown("</div>", unsafe_allow_html=True)
+
 
