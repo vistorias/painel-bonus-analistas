@@ -62,9 +62,25 @@ div[data-testid="collapsedControl"]{
 .block-container { padding-top: 1.2rem; padding-bottom: 2rem; max-width: 1400px; }
 
 /* ===== SIDEBAR AZUL (NATIVA) ===== */
+/* SIDEBAR SEM RECOLHER + MENOR */
 section[data-testid="stSidebar"]{
   background: #0b1220;
   border-right: 1px solid rgba(255,255,255,.08);
+
+  min-width: 240px !important;
+  width: 240px !important;
+}
+
+/* garante que o conteúdo principal respeite a largura menor */
+div[data-testid="stAppViewContainer"] .main .block-container{
+  padding-left: 1.2rem;
+  padding-right: 1.2rem;
+}
+
+/* some com qualquer controle de recolher/reabrir */
+button[title="Collapse sidebar"],
+div[data-testid="collapsedControl"]{
+  display: none !important;
 }
 section[data-testid="stSidebar"] *{
   color: #e5e7eb;
@@ -679,6 +695,7 @@ with right:
 
 # opcional: se você quiser que “Dashboard” mostre algo depois, você pode trocar o conteúdo com base em `pagina`
 # (deixei tudo no Relatório porque foi o que você pediu)
+
 
 
 
