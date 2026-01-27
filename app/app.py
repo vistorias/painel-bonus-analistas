@@ -1,10 +1,10 @@
 # -*- coding: utf-8 -*-
 # ============================================================
 # Painel de Bônus (T1) | ANALISTAS
-# - Sidebar azul (nativa do Streamlit, estilizada) com “abas” selecionáveis
-# - Filtros SEM sumir (remove o botão de recolher)
+# - Sidebar azul (NATIVA) FIXA (SEM recolher / sem setinha)
+# - Filtros na sidebar
 # - Corrige erro do pandas (__iadd__) usando += normal
-# - Corrige cortes nos cards (pills agora quebram linha e ficam mais largas)
+# - Corrige cortes nos cards (pills em bloco, quebram linha)
 # ============================================================
 
 import streamlit as st
@@ -15,7 +15,11 @@ import unicodedata
 import re
 
 # ===================== CONFIG =====================
-st.set_page_config(page_title="Painel de Bônus (T1) | Analistas", layout="wide")
+st.set_page_config(
+    page_title="Painel de Bônus (T1) | Analistas",
+    layout="wide",
+    initial_sidebar_state="expanded",  # garante aberta ao carregar
+)
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 DATA_DIR = BASE_DIR / "data"
@@ -29,115 +33,27 @@ MESES = ["TRIMESTRE", "JANEIRO", "FEVEREIRO", "MARÇO"]
 st.markdown(
     """
 <style>
-/* Remove menu/footer */
+/* Remove menu/footer (não mexe no header para não bugar o controle) */
 #MainMenu {visibility: hidden;}
 footer {visibility: hidden;}
-/* NÃO esconda o header inteiro, senão o "voltar" da sidebar some */
-header[data-testid="stHeader"]{
-  background: transparent !important;
-  height: 0px !important;
-}
 
-/* Esconde só o conteúdo do header (mantém a área mínima pro controle existir) */
-header[data-testid="stHeader"] *{
-  visibility: hidden !important;
-}
-
-/* Mas garante que o controle de reabrir a sidebar apareça */
-div[data-testid="collapsedControl"],
-div[data-testid="collapsedControl"] *{
-  visibility: visible !important;
-  opacity: 1 !important;
-}
-
-/* Deixa o "voltar" sempre clicável e por cima */
-div[data-testid="collapsedControl"]{
-  position: fixed !important;
-  top: 10px !important;
-  left: 10px !important;
-  z-index: 999999 !important;
-}
-
-/* Largura geral */
-.block-container { padding-top: 1.2rem; padding-bottom: 2rem; max-width: 1400px; }
+/* ===== REGRA PRINCIPAL: IMPEDIR RECOLHER =====
+   - Some com o botão/setinha de recolher
+   - Some com o controle de reabrir (porque não vamos permitir recolher)
+*/
+button[title="Collapse sidebar"]{ display:none !important; }
+div[data-testid="collapsedControl"]{ display:none !important; }
 
 /* ===== SIDEBAR AZUL (NATIVA) ===== */
-/* SIDEBAR SEM RECOLHER + MENOR */
 section[data-testid="stSidebar"]{
   background: #0b1220;
   border-right: 1px solid rgba(255,255,255,.08);
-
   min-width: 240px !important;
   width: 240px !important;
 }
-
-/* garante que o conteúdo principal respeite a largura menor */
-div[data-testid="stAppViewContainer"] .main .block-container{
-  padding-left: 1.2rem;
-  padding-right: 1.2rem;
-}
-
-/* some com qualquer controle de recolher/reabrir */
-button[title="Collapse sidebar"],
-div[data-testid="collapsedControl"]{
-  display: none !important;
-}
-section[data-testid="stSidebar"] *{
-  color: #e5e7eb;
-}
+section[data-testid="stSidebar"] *{ color: #e5e7eb; }
 section[data-testid="stSidebar"] .stMarkdown p,
-section[data-testid="stSidebar"] .stMarkdown div{
-  color:#e5e7eb;
-}
-
-/* remove o botão nativo de recolher (o que some) */
-button[title="Collapse sidebar"] { display:none !important; }
-
-/* NÃO esconda o controle colapsado, senão não volta */
-div[data-testid="collapsedControl"]{
-  display: block !important;
-  visibility: visible !important;
-  opacity: 1 !important;
-}
-
-/* títulos da sidebar */
-.sb-brand{
-  display:flex; gap:10px; align-items:center;
-  padding: 6px 2px 2px 2px;
-}
-.sb-logo{
-  width: 42px; height: 42px; border-radius: 12px;
-  background: rgba(255,255,255,.08);
-  display:flex; align-items:center; justify-content:center;
-  font-weight: 900; font-size: 16px;
-  border: 1px solid rgba(255,255,255,.10);
-}
-.sb-title{ font-weight: 950; font-size: 1.02rem; line-height: 1.1; margin:0; }
-.sb-sub{ color: rgba(229,231,235,.70); font-size: .80rem; margin-top: 2px; }
-
-.sb-section-title{
-  font-size: .70rem;
-  letter-spacing:.12em;
-  opacity:.75;
-  font-weight: 900;
-  margin: 16px 0 10px 0;
-}
-
-.sb-divider{ height:1px; background: rgba(255,255,255,.10); margin: 14px 0; }
-
-/* “abas” do menu */
-.nav-pill{
-  border: 1px solid rgba(255,255,255,.10);
-  background: rgba(255,255,255,.06);
-  padding: 10px 12px;
-  border-radius: 12px;
-  font-weight: 900;
-  margin-bottom: 8px;
-}
-.nav-pill.active{
-  background: rgba(59,130,246,.22);
-  border-color: rgba(59,130,246,.45);
-}
+section[data-testid="stSidebar"] .stMarkdown div{ color:#e5e7eb; }
 
 /* Inputs do Streamlit na sidebar */
 section[data-testid="stSidebar"] input,
@@ -150,6 +66,40 @@ section[data-testid="stSidebar"] div[role="combobox"]{
 section[data-testid="stSidebar"] label{
   color: rgba(229,231,235,.85) !important;
   font-weight: 800 !important;
+}
+
+/* Largura geral */
+.block-container { padding-top: 1.2rem; padding-bottom: 2rem; max-width: 1400px; }
+
+/* títulos da sidebar */
+.sb-brand{ display:flex; gap:10px; align-items:center; padding: 6px 2px 2px 2px; }
+.sb-logo{
+  width: 42px; height: 42px; border-radius: 12px;
+  background: rgba(255,255,255,.08);
+  display:flex; align-items:center; justify-content:center;
+  font-weight: 900; font-size: 16px;
+  border: 1px solid rgba(255,255,255,.10);
+}
+.sb-title{ font-weight: 950; font-size: 1.02rem; line-height: 1.1; margin:0; }
+.sb-sub{ color: rgba(229,231,235,.70); font-size: .80rem; margin-top: 2px; }
+.sb-section-title{
+  font-size: .70rem; letter-spacing:.12em; opacity:.75; font-weight: 900;
+  margin: 16px 0 10px 0;
+}
+.sb-divider{ height:1px; background: rgba(255,255,255,.10); margin: 14px 0; }
+
+/* “abas” do menu (estético) */
+.nav-pill{
+  border: 1px solid rgba(255,255,255,.10);
+  background: rgba(255,255,255,.06);
+  padding: 10px 12px;
+  border-radius: 12px;
+  font-weight: 900;
+  margin-bottom: 8px;
+}
+.nav-pill.active{
+  background: rgba(59,130,246,.22);
+  border-color: rgba(59,130,246,.45);
 }
 
 /* ===== HEADER / KPI ===== */
@@ -216,7 +166,7 @@ section[data-testid="stSidebar"] label{
   margin-top:8px;
 }
 
-/* pills agora NÃO cortam: quebram linha e ficam “bloco” */
+/* pills em bloco (não cortam) */
 .pill{
   width:100%;
   background: rgba(15,23,42,.05);
@@ -352,7 +302,6 @@ def ler_planilha(mes: str) -> pd.DataFrame:
         st.stop()
     return pd.read_excel(sorted(candidatos)[0], sheet_name=mes)
 
-# colunas obrigatórias para a lógica individual
 COLS_OBRIG = [
     "NOME", "FUNÇÃO", "VALOR MENSAL META",
     "BATEU_PRODUCAO", "BATEU_TMG_GERAL", "BATEU_TMA_ANALISTA", "BATEU_TEMPO_FILA", "BATEU_CONFORMIDADE"
@@ -368,7 +317,6 @@ def calcula_mes(df_mes: pd.DataFrame, nome_mes: str) -> pd.DataFrame:
     df = df_mes.copy()
     checar_colunas(df, nome_mes)
 
-    # garante só analistas
     df = df[df["FUNÇÃO"].astype(str).apply(up) == up("ANALISTA")].copy()
 
     metainfo = PESOS.get(up("ANALISTA"), {})
@@ -396,8 +344,7 @@ def calcula_mes(df_mes: pd.DataFrame, nome_mes: str) -> pd.DataFrame:
 
             if item_norm in [up("PRODUÇÃO"), up("PRODUCAO")]:
                 bateu = bool_safe(row.get("BATEU_PRODUCAO"), True)
-                if bateu:
-                    recebido += parcela
+                if bateu: recebido += parcela
                 else:
                     perdas += parcela
                     perdeu_itens.append("Produção")
@@ -405,8 +352,7 @@ def calcula_mes(df_mes: pd.DataFrame, nome_mes: str) -> pd.DataFrame:
 
             if item_norm in [up("TEMPO MÉDIO GERAL DE ANÁLISE"), up("TEMPO MEDIO GERAL DE ANALISE")]:
                 bateu = bool_safe(row.get("BATEU_TMG_GERAL"), True)
-                if bateu:
-                    recebido += parcela
+                if bateu: recebido += parcela
                 else:
                     perdas += parcela
                     perdeu_itens.append("Tempo Médio Geral de Análise")
@@ -414,8 +360,7 @@ def calcula_mes(df_mes: pd.DataFrame, nome_mes: str) -> pd.DataFrame:
 
             if item_norm in [up("TEMPO MÉDIO DE ANÁLISE DO ANALISTA"), up("TEMPO MEDIO DE ANALISE DO ANALISTA")]:
                 bateu = bool_safe(row.get("BATEU_TMA_ANALISTA"), True)
-                if bateu:
-                    recebido += parcela
+                if bateu: recebido += parcela
                 else:
                     perdas += parcela
                     perdeu_itens.append("Tempo Médio do Analista")
@@ -423,8 +368,7 @@ def calcula_mes(df_mes: pd.DataFrame, nome_mes: str) -> pd.DataFrame:
 
             if item_norm in [up("TEMPO MÉDIO DA FILA"), up("TEMPO MEDIO DA FILA")]:
                 bateu = bool_safe(row.get("BATEU_TEMPO_FILA"), True)
-                if bateu:
-                    recebido += parcela
+                if bateu: recebido += parcela
                 else:
                     perdas += parcela
                     perdeu_itens.append("Tempo Médio da Fila")
@@ -432,14 +376,12 @@ def calcula_mes(df_mes: pd.DataFrame, nome_mes: str) -> pd.DataFrame:
 
             if item_norm == up("CONFORMIDADE"):
                 bateu = bool_safe(row.get("BATEU_CONFORMIDADE"), True)
-                if bateu:
-                    recebido += parcela
+                if bateu: recebido += parcela
                 else:
                     perdas += parcela
                     perdeu_itens.append("Conformidade")
                 continue
 
-            # qualquer item não mapeado: considera batido
             recebido += parcela
 
         meta = total_func
@@ -462,7 +404,6 @@ def montar_base(periodo: str) -> pd.DataFrame:
             ignore_index=True
         )
 
-        # colunas de agrupamento (se existirem)
         group_cols = [c for c in ["CIDADE", "NOME", "FUNÇÃO", "DATA DE ADMISSÃO", "TEMPO DE CASA"] if c in full.columns]
         if not group_cols:
             group_cols = ["NOME", "FUNÇÃO"]
@@ -524,7 +465,6 @@ with st.sidebar:
         label_visibility="collapsed"
     )
 
-    # “pills” visuais (só estética)
     st.markdown(
         f"""
 <div class="nav-pill {'active' if pagina=='Dashboard' else ''}">🏠 Dashboard</div>
@@ -537,10 +477,7 @@ with st.sidebar:
 
     filtro_mes = st.radio("Período", MESES, index=0, key="periodo")
 
-    # monta base para popular selects
     dados_calc = montar_base(filtro_mes)
-
-    # segurança: só analistas
     dados_calc = dados_calc[dados_calc["FUNÇÃO"].astype(str).apply(up) == up("ANALISTA")].copy()
 
     cidades = ["Todas"] + (sorted([c for c in dados_calc["CIDADE"].dropna().unique()]) if "CIDADE" in dados_calc.columns else [])
@@ -564,7 +501,6 @@ with st.sidebar:
     )
 
 # ===================== CONTEÚDO =====================
-# aplica filtros
 dados_view = dados_calc.copy()
 
 if filtro_nome:
@@ -660,22 +596,10 @@ with right:
   <div class="person-meta">{meta_line}</div>
 
   <div class="person-grid">
-    <div class="pill">
-      <div class="lbl">Meta</div>
-      <div class="val">{brl(meta)}</div>
-    </div>
-    <div class="pill">
-      <div class="lbl">Recebido</div>
-      <div class="val">{brl(rec)}</div>
-    </div>
-    <div class="pill">
-      <div class="lbl">Perda</div>
-      <div class="val">{brl(per)}</div>
-    </div>
-    <div class="pill">
-      <div class="lbl">Cumprimento</div>
-      <div class="val">{pct:.1f}%</div>
-    </div>
+    <div class="pill"><div class="lbl">Meta</div><div class="val">{brl(meta)}</div></div>
+    <div class="pill"><div class="lbl">Recebido</div><div class="val">{brl(rec)}</div></div>
+    <div class="pill"><div class="lbl">Perda</div><div class="val">{brl(per)}</div></div>
+    <div class="pill"><div class="lbl">Cumprimento</div><div class="val">{pct:.1f}%</div></div>
   </div>
 
   <div style="height:10px"></div>
@@ -692,11 +616,3 @@ with right:
             )
 
     st.markdown("</div>", unsafe_allow_html=True)
-
-# opcional: se você quiser que “Dashboard” mostre algo depois, você pode trocar o conteúdo com base em `pagina`
-# (deixei tudo no Relatório porque foi o que você pediu)
-
-
-
-
-
