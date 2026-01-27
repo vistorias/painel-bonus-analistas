@@ -1,10 +1,9 @@
 # -*- coding: utf-8 -*-
 # ============================================================
 # Painel de Bônus (T1) | ANALISTAS
-# - Sidebar azul (NATIVA) FIXA (SEM recolher / sem setinha)
+# - Login (usuário/senha via Streamlit Secrets) + layout bonito e centralizado
+# - Sidebar azul (nativa) menor
 # - Filtros na sidebar
-# - Corrige erro do pandas (__iadd__) usando += normal
-# - Corrige cortes nos cards (pills em bloco, quebram linha)
 # ============================================================
 
 import streamlit as st
@@ -13,111 +12,183 @@ import json
 from pathlib import Path
 import unicodedata
 import re
-import streamlit as st
 import hmac
 import hashlib
 
-# ===================== LOGIN (SECRETS + HASH) =====================
+# ===================== CONFIG (TEM QUE SER PRIMEIRO) =====================
+st.set_page_config(
+    page_title="Painel de Bônus (T1) | Analistas",
+    layout="wide",
+    initial_sidebar_state="expanded",
+)
+
+# ===================== AUTH HELPERS =====================
 def _sha256(s: str) -> str:
     return hashlib.sha256(s.encode("utf-8")).hexdigest()
 
-def _get_users():
-    # evita KeyError e facilita debug
-    auth = st.secrets.get("auth", {})
-    users = auth.get("users", {})  # precisa existir no secrets
-    return users if isinstance(users, dict) else {}
+def _get_users_from_secrets() -> dict:
+    """
+    Suporta 2 formatos no Secrets:
 
-def _verify_user(email: str, password: str) -> bool:
-    users = _get_users()
-    stored_hash = users.get(email, "")
-    if not stored_hash:
+    (A) [auth.users]
+        "adm@brave" = "<hash_ou_senha>"
+        "gestor@brave" = "<hash_ou_senha>"
+
+    (B) [auth]
+        users = { "adm@brave" = "<hash_ou_senha>", "gestor@brave" = "<hash_ou_senha>" }
+    """
+    try:
+        if "auth" in st.secrets and isinstance(st.secrets["auth"], dict):
+            auth = st.secrets["auth"]
+            if "users" in auth and isinstance(auth["users"], dict):
+                return dict(auth["users"])
+        # fallback raro: caso sua chave venha "achatada"
+        if "auth.users" in st.secrets and isinstance(st.secrets["auth.users"], dict):
+            return dict(st.secrets["auth.users"])
+        return {}
+    except Exception:
+        return {}
+
+def _verify_user(email: str, password: str, users: dict) -> bool:
+    """
+    Aceita 2 jeitos de armazenar:
+    - Senha em texto puro (não recomendado, mas funciona)
+    - Hash SHA256 da senha (recomendado)
+    """
+    stored = users.get(email, "")
+    if not stored:
         return False
-    return hmac.compare_digest(stored_hash, _sha256(password))
+
+    typed_hash = _sha256(password)
+
+    # 1) se o stored já é um hash sha256 (64 hex), compara com hash do digitado
+    looks_like_hash = isinstance(stored, str) and len(stored) == 64 and all(c in "0123456789abcdef" for c in stored.lower())
+    if looks_like_hash:
+        return hmac.compare_digest(stored.lower(), typed_hash.lower())
+
+    # 2) senão, trata como senha normal
+    return hmac.compare_digest(str(stored), str(password))
 
 def tela_login():
-    st.markdown("""
-    <style>
-    .login-wrapper{
-        min-height: 100vh;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        background: #f5f7fb;
-        padding: 18px;
-    }
-    .login-card{
-        background: #ffffff;
-        border-radius: 18px;
-        padding: 36px;
-        width: 100%;
-        max-width: 420px;
-        box-shadow: 0 20px 50px rgba(15,23,42,.12);
-        text-align: center;
-    }
-    .login-icon{
-        width:64px;
-        height:64px;
-        border-radius:18px;
-        background:#2563eb;
-        display:flex;
-        align-items:center;
-        justify-content:center;
-        margin: 0 auto 12px auto;
-        font-size:32px;
-        color:white;
-        font-weight:900;
-    }
-    .login-title{
-        font-size:1.4rem;
-        font-weight:900;
-        margin-bottom:4px;
-    }
-    .login-sub{
-        font-size:.9rem;
-        color:#64748b;
-        margin-bottom:22px;
-    }
-    </style>
-    """, unsafe_allow_html=True)
+    users = _get_users_from_secrets()
+
+    # Se secrets não estiverem configurados corretamente, não quebra: avisa e para.
+    if not users:
+        st.error('Secrets não configurados: crie [auth.users] no Streamlit Cloud > Settings > Secrets.')
+        st.stop()
+
+    st.markdown(
+        """
+<style>
+/* limpa menu/footer */
+#MainMenu {visibility: hidden;}
+footer {visibility: hidden;}
+
+/* centralização vertical real */
+.login-wrapper{
+  min-height: calc(100vh - 80px);
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  padding: 24px 16px;
+}
+
+/* card */
+.login-card{
+  width: 100%;
+  max-width: 440px;
+  background: #ffffff;
+  border-radius: 18px;
+  padding: 34px 30px;
+  border: 1px solid rgba(15,23,42,.08);
+  box-shadow: 0 24px 60px rgba(15,23,42,.12);
+  text-align:center;
+}
+
+/* ícone */
+.login-icon{
+  width:72px;
+  height:72px;
+  border-radius:20px;
+  background: #2563eb;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  margin: 0 auto 14px auto;
+  color: #fff;
+  font-size: 30px;
+  font-weight: 900;
+}
+
+/* títulos */
+.login-title{
+  font-size: 1.35rem;
+  font-weight: 950;
+  margin: 4px 0 6px 0;
+}
+.login-sub{
+  font-size: .95rem;
+  color: #64748b;
+  margin: 0 0 18px 0;
+}
+
+/* inputs/botão */
+div[data-testid="stTextInput"] input{
+  height: 44px;
+  border-radius: 12px;
+}
+button[kind="primary"]{
+  height: 44px;
+  border-radius: 12px;
+  font-weight: 900;
+}
+
+/* links fake */
+.login-links{
+  margin-top: 14px;
+  font-size: .88rem;
+  color: #64748b;
+}
+</style>
+""",
+        unsafe_allow_html=True,
+    )
 
     st.markdown('<div class="login-wrapper"><div class="login-card">', unsafe_allow_html=True)
+
     st.markdown('<div class="login-icon">🔐</div>', unsafe_allow_html=True)
-    st.markdown('<div class="login-title">Bem-vindo de volta!</div>', unsafe_allow_html=True)
-    st.markdown('<div class="login-sub">Entre com suas credenciais para acessar o sistema</div>', unsafe_allow_html=True)
+    st.markdown('<div class="login-title">Bem-vindo de volta</div>', unsafe_allow_html=True)
+    st.markdown('<div class="login-sub">Entre com suas credenciais para acessar o painel</div>', unsafe_allow_html=True)
 
-    email = st.text_input("E-mail", placeholder="seu@email.com")
-    senha = st.text_input("Senha", type="password", placeholder="••••••••")
+    with st.form("login_form", clear_on_submit=False):
+        email = st.text_input("E-mail", placeholder="seu@email.com")
+        senha = st.text_input("Senha", type="password", placeholder="••••••••")
+        entrar = st.form_submit_button("Entrar", type="primary", use_container_width=True)
 
-    if st.button("Entrar", use_container_width=True):
-        if _verify_user(email.strip(), senha):
+    if entrar:
+        email_n = (email or "").strip().lower()
+        ok = _verify_user(email_n, senha or "", users)
+
+        if ok:
             st.session_state["logado"] = True
-            st.session_state["usuario"] = email.strip()
+            st.session_state["usuario"] = email_n
             st.rerun()
         else:
-            st.error("❌ Usuário ou senha inválidos")
+            st.error("Usuário ou senha inválidos")
 
-    st.markdown('<div style="margin-top:14px;font-size:.85rem;color:#64748b;">Esqueci minha senha</div>', unsafe_allow_html=True)
-    st.markdown('</div></div>', unsafe_allow_html=True)
+    st.markdown('<div class="login-links">Esqueci minha senha</div>', unsafe_allow_html=True)
+    st.markdown("</div></div>", unsafe_allow_html=True)
+
 
 # Controle de sessão
 if "logado" not in st.session_state:
     st.session_state["logado"] = False
 
 if not st.session_state["logado"]:
-    # mensagem clara se secrets não estiverem configurados
-    if not _get_users():
-        st.error("Secrets não configurado: crie [auth.users] no Streamlit Cloud → Settings → Secrets.")
-        st.stop()
     tela_login()
     st.stop()
 
-# ===================== CONFIG =====================
-st.set_page_config(
-    page_title="Painel de Bônus (T1) | Analistas",
-    layout="wide",
-    initial_sidebar_state="expanded",  # garante aberta ao carregar
-)
-
+# ===================== PATHS / DADOS =====================
 BASE_DIR = Path(__file__).resolve().parent.parent
 DATA_DIR = BASE_DIR / "data"
 
@@ -130,18 +201,10 @@ MESES = ["TRIMESTRE", "JANEIRO", "FEVEREIRO", "MARÇO"]
 st.markdown(
     """
 <style>
-/* Remove menu/footer (não mexe no header para não bugar o controle) */
 #MainMenu {visibility: hidden;}
 footer {visibility: hidden;}
 
-/* ===== REGRA PRINCIPAL: IMPEDIR RECOLHER =====
-   - Some com o botão/setinha de recolher
-   - Some com o controle de reabrir (porque não vamos permitir recolher)
-*/
-button[title="Collapse sidebar"]{ display:none !important; }
-div[data-testid="collapsedControl"]{ display:none !important; }
-
-/* ===== SIDEBAR AZUL (NATIVA) ===== */
+/* Sidebar menor */
 section[data-testid="stSidebar"]{
   background: #0b1220;
   border-right: 1px solid rgba(255,255,255,.08);
@@ -165,7 +228,7 @@ section[data-testid="stSidebar"] label{
   font-weight: 800 !important;
 }
 
-/* Largura geral */
+/* Layout geral */
 .block-container { padding-top: 1.2rem; padding-bottom: 2rem; max-width: 1400px; }
 
 /* títulos da sidebar */
@@ -199,7 +262,7 @@ section[data-testid="stSidebar"] label{
   border-color: rgba(59,130,246,.45);
 }
 
-/* ===== HEADER / KPI ===== */
+/* Header/KPI */
 .page-title { font-size: 1.75rem; font-weight: 950; line-height: 1.1; margin:0; }
 .page-sub { color: rgba(15,23,42,.60); font-size: .95rem; margin-top: 4px; }
 
@@ -227,7 +290,6 @@ section[data-testid="stSidebar"] label{
 .kpi-value{ font-size:1.55rem; font-weight: 950; margin-top:6px; }
 .kpi-sub{ font-size:.85rem; color: rgba(15,23,42,.55); margin-top:2px; }
 
-/* ===== SEÇÕES ===== */
 .section{
   border: 1px solid rgba(15,23,42,.10);
   background: #fff;
@@ -244,7 +306,6 @@ section[data-testid="stSidebar"] label{
   align-items:center;
 }
 
-/* ===== CARDS ===== */
 .person-card{
   border:1px solid rgba(15,23,42,.10);
   background:#fff;
@@ -262,8 +323,6 @@ section[data-testid="stSidebar"] label{
   gap:10px;
   margin-top:8px;
 }
-
-/* pills em bloco (não cortam) */
 .pill{
   width:100%;
   background: rgba(15,23,42,.05);
@@ -441,7 +500,8 @@ def calcula_mes(df_mes: pd.DataFrame, nome_mes: str) -> pd.DataFrame:
 
             if item_norm in [up("PRODUÇÃO"), up("PRODUCAO")]:
                 bateu = bool_safe(row.get("BATEU_PRODUCAO"), True)
-                if bateu: recebido += parcela
+                if bateu:
+                    recebido += parcela
                 else:
                     perdas += parcela
                     perdeu_itens.append("Produção")
@@ -449,7 +509,8 @@ def calcula_mes(df_mes: pd.DataFrame, nome_mes: str) -> pd.DataFrame:
 
             if item_norm in [up("TEMPO MÉDIO GERAL DE ANÁLISE"), up("TEMPO MEDIO GERAL DE ANALISE")]:
                 bateu = bool_safe(row.get("BATEU_TMG_GERAL"), True)
-                if bateu: recebido += parcela
+                if bateu:
+                    recebido += parcela
                 else:
                     perdas += parcela
                     perdeu_itens.append("Tempo Médio Geral de Análise")
@@ -457,7 +518,8 @@ def calcula_mes(df_mes: pd.DataFrame, nome_mes: str) -> pd.DataFrame:
 
             if item_norm in [up("TEMPO MÉDIO DE ANÁLISE DO ANALISTA"), up("TEMPO MEDIO DE ANALISE DO ANALISTA")]:
                 bateu = bool_safe(row.get("BATEU_TMA_ANALISTA"), True)
-                if bateu: recebido += parcela
+                if bateu:
+                    recebido += parcela
                 else:
                     perdas += parcela
                     perdeu_itens.append("Tempo Médio do Analista")
@@ -465,7 +527,8 @@ def calcula_mes(df_mes: pd.DataFrame, nome_mes: str) -> pd.DataFrame:
 
             if item_norm in [up("TEMPO MÉDIO DA FILA"), up("TEMPO MEDIO DA FILA")]:
                 bateu = bool_safe(row.get("BATEU_TEMPO_FILA"), True)
-                if bateu: recebido += parcela
+                if bateu:
+                    recebido += parcela
                 else:
                     perdas += parcela
                     perdeu_itens.append("Tempo Médio da Fila")
@@ -473,7 +536,8 @@ def calcula_mes(df_mes: pd.DataFrame, nome_mes: str) -> pd.DataFrame:
 
             if item_norm == up("CONFORMIDADE"):
                 bateu = bool_safe(row.get("BATEU_CONFORMIDADE"), True)
-                if bateu: recebido += parcela
+                if bateu:
+                    recebido += parcela
                 else:
                     perdas += parcela
                     perdeu_itens.append("Conformidade")
@@ -538,7 +602,7 @@ def montar_base(periodo: str) -> pd.DataFrame:
     )
     return out
 
-# ===================== SIDEBAR (AZUL, COM ABAS + FILTROS) =====================
+# ===================== SIDEBAR =====================
 with st.sidebar:
     st.markdown(
         """
@@ -555,17 +619,12 @@ with st.sidebar:
         unsafe_allow_html=True,
     )
 
-    pagina = st.radio(
-        "Navegação",
-        ["Dashboard", "Relatório"],
-        index=1,
-        label_visibility="collapsed"
-    )
+    pagina = st.radio("Navegação", ["Dashboard", "Relatório"], index=1, label_visibility="collapsed")
 
     st.markdown(
         f"""
-<div class="nav-pill {'active' if pagina=='Dashboard' else ''}">🏠 Dashboard</div>
-<div class="nav-pill {'active' if pagina=='Relatório' else ''}">📄 Relatório</div>
+<div class="nav-pill {'active' if pagina=='Dashboard' else ''}">Dashboard</div>
+<div class="nav-pill {'active' if pagina=='Relatório' else ''}">Relatório</div>
 """,
         unsafe_allow_html=True,
     )
@@ -577,22 +636,22 @@ with st.sidebar:
     dados_calc = montar_base(filtro_mes)
     dados_calc = dados_calc[dados_calc["FUNÇÃO"].astype(str).apply(up) == up("ANALISTA")].copy()
 
-    EMPRESAs = ["Todas"] + (sorted([c for c in dados_calc["EMPRESA"].dropna().unique()]) if "EMPRESA" in dados_calc.columns else [])
+    empresas = ["Todas"] + (sorted([c for c in dados_calc["EMPRESA"].dropna().unique()]) if "EMPRESA" in dados_calc.columns else [])
     tempos = ["Todos"] + (sorted([t for t in dados_calc["TEMPO DE CASA"].dropna().unique()]) if "TEMPO DE CASA" in dados_calc.columns else [])
 
     with st.form("filtros_form", clear_on_submit=False):
         filtro_nome = st.text_input("Buscar por nome", value=st.session_state.get("f_nome", ""))
-        filtro_EMPRESA = st.selectbox("EMPRESA", EMPRESAs, index=0)
+        filtro_empresa = st.selectbox("Empresa", empresas, index=0)
         filtro_tempo = st.selectbox("Tempo de casa", tempos, index=0)
         aplicar = st.form_submit_button("Aplicar filtros")
     if aplicar:
         st.session_state["f_nome"] = filtro_nome
 
     st.markdown(
-        """
+        f"""
 <div class="sb-divider"></div>
 <div style="opacity:.85;font-weight:900;font-size:.80rem;">Logado como</div>
-<div style="font-weight:950;margin-top:2px;">analistas@brave</div>
+<div style="font-weight:950;margin-top:2px;">{st.session_state.get("usuario","")}</div>
 """,
         unsafe_allow_html=True,
     )
@@ -602,8 +661,8 @@ dados_view = dados_calc.copy()
 
 if filtro_nome:
     dados_view = dados_view[dados_view["NOME"].astype(str).str.contains(filtro_nome, case=False, na=False)]
-if filtro_EMPRESA != "Todas" and "EMPRESA" in dados_view.columns:
-    dados_view = dados_view[dados_view["EMPRESA"] == filtro_EMPRESA]
+if filtro_empresa != "Todas" and "EMPRESA" in dados_view.columns:
+    dados_view = dados_view[dados_view["EMPRESA"] == filtro_empresa]
 if filtro_tempo != "Todos" and "TEMPO DE CASA" in dados_view.columns:
     dados_view = dados_view[dados_view["TEMPO DE CASA"] == filtro_tempo]
 
@@ -632,7 +691,7 @@ left, right = st.columns([1.05, 1.25], gap="large")
 
 with left:
     st.markdown('<div class="section">', unsafe_allow_html=True)
-    st.markdown('<div class="section-title">📌 Resumo</div>', unsafe_allow_html=True)
+    st.markdown('<div class="section-title">Resumo</div>', unsafe_allow_html=True)
 
     cumprimento_medio = 0.0 if total_possivel == 0 else (recebido / total_possivel) * 100.0
     resumo = pd.DataFrame(
@@ -652,18 +711,15 @@ with left:
         top["RECEBIDO"] = top["RECEBIDO"].apply(brl)
     if "PERDA" in top.columns:
         top["PERDA"] = top["PERDA"].apply(brl)
-    if "EMPRESA" in top.columns:
-        top["EMPRESA"] = top["EMPRESA"].astype(str).str.title()
 
     st.markdown('<div style="height:10px"></div>', unsafe_allow_html=True)
-    st.markdown('<div class="section-title">🏆 Top 5</div>', unsafe_allow_html=True)
+    st.markdown('<div class="section-title">Top 5</div>', unsafe_allow_html=True)
     st.dataframe(top, use_container_width=True, hide_index=True)
-
     st.markdown("</div>", unsafe_allow_html=True)
 
 with right:
     st.markdown('<div class="section">', unsafe_allow_html=True)
-    st.markdown('<div class="section-title">👥 Analistas</div>', unsafe_allow_html=True)
+    st.markdown('<div class="section-title">Analistas</div>', unsafe_allow_html=True)
 
     cols_cards = st.columns(2, gap="medium")
 
@@ -674,14 +730,14 @@ with right:
         per = float(row.get("PERDA", 0) or 0)
 
         nome = str(row.get("NOME", "")).title()
-        EMPRESA = str(row.get("EMPRESA", "")).title() if "EMPRESA" in dados_view.columns else ""
+        empresa = str(row.get("EMPRESA", "")).title() if "EMPRESA" in dados_view.columns else ""
         tempo = str(row.get("TEMPO DE CASA", "")).strip() if "TEMPO DE CASA" in dados_view.columns else ""
 
         obs = texto_obs(row.get("_obs", row.get("OBSERVAÇÃO", "")))
         perdidos_txt = texto_obs(row.get("INDICADORES_NAO_ENTREGUES", ""))
 
         tag = "Excelente" if pct >= 95 else ("Atenção" if pct < 80 else "Ok")
-        meta_line = f"Analista — {EMPRESA}" if EMPRESA else "Analista"
+        meta_line = f"Analista — {empresa}" if empresa else "Analista"
         if tempo:
             meta_line = f"{meta_line} • {tempo}"
 
@@ -713,8 +769,3 @@ with right:
             )
 
     st.markdown("</div>", unsafe_allow_html=True)
-
-
-
-
-
