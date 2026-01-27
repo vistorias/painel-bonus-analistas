@@ -1,9 +1,9 @@
 # -*- coding: utf-8 -*-
 # ============================================================
 # Painel de Bônus (T1) | ANALISTAS
-# - Login (usuário/senha via Streamlit Secrets) + layout bonito e centralizado
-# - Sidebar azul (nativa) menor
-# - Filtros na sidebar
+# - Login com usuário/senha via Streamlit Secrets (sem expor no GitHub)
+# - Login centralizado + ícone + mensagem inválida
+# - Sidebar azul FIXA (sem recolher)
 # ============================================================
 
 import streamlit as st
@@ -15,168 +15,185 @@ import re
 import hmac
 import hashlib
 
-# ===================== CONFIG (TEM QUE SER PRIMEIRO) =====================
+# ===================== CONFIG (TEM QUE SER A 1ª CHAMADA) =====================
 st.set_page_config(
     page_title="Painel de Bônus (T1) | Analistas",
     layout="wide",
     initial_sidebar_state="expanded",
 )
 
-# ===================== AUTH HELPERS =====================
+# ===================== LOGIN (SECRETS) =====================
 def _sha256(s: str) -> str:
     return hashlib.sha256(s.encode("utf-8")).hexdigest()
 
 def _get_users_from_secrets() -> dict:
     """
-    Suporta 2 formatos no Secrets:
-
-    (A) [auth.users]
-        "adm@brave" = "<hash_ou_senha>"
-        "gestor@brave" = "<hash_ou_senha>"
-
-    (B) [auth]
-        users = { "adm@brave" = "<hash_ou_senha>", "gestor@brave" = "<hash_ou_senha>" }
+    Aceita os dois formatos:
+    1) [auth.users] "email"="senha"
+       -> st.secrets["auth"]["users"]
+    2) [auth]
+         users = { "email"="senha" }
+       -> st.secrets["auth"]["users"]
+    E também tenta fallback se vier "achatado" (menos comum).
     """
-    try:
-        if "auth" in st.secrets and isinstance(st.secrets["auth"], dict):
-            auth = st.secrets["auth"]
-            if "users" in auth and isinstance(auth["users"], dict):
-                return dict(auth["users"])
-        # fallback raro: caso sua chave venha "achatada"
-        if "auth.users" in st.secrets and isinstance(st.secrets["auth.users"], dict):
-            return dict(st.secrets["auth.users"])
-        return {}
-    except Exception:
-        return {}
+    # caso padrão (nested)
+    auth = st.secrets.get("auth", None)
+    if isinstance(auth, dict) and isinstance(auth.get("users", None), dict):
+        return auth["users"]
+
+    # fallback raro: chave achatada "auth.users"
+    flat = st.secrets.get("auth.users", None)
+    if isinstance(flat, dict):
+        return flat
+
+    # se nada existir
+    return {}
 
 def _verify_user(email: str, password: str, users: dict) -> bool:
     """
-    Aceita 2 jeitos de armazenar:
-    - Senha em texto puro (não recomendado, mas funciona)
-    - Hash SHA256 da senha (recomendado)
+    Suporta senha em texto puro OU hash sha256 (64 hex).
+    - Se no secrets estiver "123456", compara direto.
+    - Se estiver sha256, compara hash.
     """
     stored = users.get(email, "")
     if not stored:
         return False
 
-    typed_hash = _sha256(password)
+    stored = str(stored).strip()
+    pwd = str(password or "").strip()
 
-    # 1) se o stored já é um hash sha256 (64 hex), compara com hash do digitado
-    looks_like_hash = isinstance(stored, str) and len(stored) == 64 and all(c in "0123456789abcdef" for c in stored.lower())
-    if looks_like_hash:
-        return hmac.compare_digest(stored.lower(), typed_hash.lower())
+    # se parecer hash sha256 (64 hex), valida por hash
+    is_sha = len(stored) == 64 and all(c in "0123456789abcdef" for c in stored.lower())
+    if is_sha:
+        return hmac.compare_digest(stored.lower(), _sha256(pwd).lower())
 
-    # 2) senão, trata como senha normal
-    return hmac.compare_digest(str(stored), str(password))
+    # senha em texto puro
+    return hmac.compare_digest(stored, pwd)
 
 def tela_login():
     users = _get_users_from_secrets()
 
-    # Se secrets não estiverem configurados corretamente, não quebra: avisa e para.
-    if not users:
-        st.error('Secrets não configurados: crie [auth.users] no Streamlit Cloud > Settings > Secrets.')
-        st.stop()
-
     st.markdown(
         """
-<style>
-/* limpa menu/footer */
-#MainMenu {visibility: hidden;}
-footer {visibility: hidden;}
+        <style>
+        /* página limpa */
+        #MainMenu {visibility: hidden;}
+        footer {visibility: hidden;}
 
-/* centralização vertical real */
-.login-wrapper{
-  min-height: calc(100vh - 80px);
-  display:flex;
-  align-items:center;
-  justify-content:center;
-  padding: 24px 16px;
-}
-
-/* card */
-.login-card{
-  width: 100%;
-  max-width: 440px;
-  background: #ffffff;
-  border-radius: 18px;
-  padding: 34px 30px;
-  border: 1px solid rgba(15,23,42,.08);
-  box-shadow: 0 24px 60px rgba(15,23,42,.12);
-  text-align:center;
-}
-
-/* ícone */
-.login-icon{
-  width:72px;
-  height:72px;
-  border-radius:20px;
-  background: #2563eb;
-  display:flex;
-  align-items:center;
-  justify-content:center;
-  margin: 0 auto 14px auto;
-  color: #fff;
-  font-size: 30px;
-  font-weight: 900;
-}
-
-/* títulos */
-.login-title{
-  font-size: 1.35rem;
-  font-weight: 950;
-  margin: 4px 0 6px 0;
-}
-.login-sub{
-  font-size: .95rem;
-  color: #64748b;
-  margin: 0 0 18px 0;
-}
-
-/* inputs/botão */
-div[data-testid="stTextInput"] input{
-  height: 44px;
-  border-radius: 12px;
-}
-button[kind="primary"]{
-  height: 44px;
-  border-radius: 12px;
-  font-weight: 900;
-}
-
-/* links fake */
-.login-links{
-  margin-top: 14px;
-  font-size: .88rem;
-  color: #64748b;
-}
-</style>
-""",
+        .login-page{
+            min-height: calc(100vh - 40px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: #f5f7fb;
+            padding: 24px 12px;
+        }
+        .login-card{
+            width: 100%;
+            max-width: 420px;
+            background: #ffffff;
+            border-radius: 18px;
+            padding: 34px 30px;
+            box-shadow: 0 20px 55px rgba(15,23,42,.12);
+            border: 1px solid rgba(15,23,42,.06);
+        }
+        .login-top{
+            text-align:center;
+            margin-bottom: 18px;
+        }
+        .login-icon{
+            width:66px;
+            height:66px;
+            border-radius:18px;
+            background: linear-gradient(135deg, #2563eb, #1d4ed8);
+            display:inline-flex;
+            align-items:center;
+            justify-content:center;
+            font-size:30px;
+            color:white;
+            font-weight:900;
+            box-shadow: 0 14px 30px rgba(37,99,235,.28);
+            margin-bottom: 12px;
+        }
+        .login-title{
+            font-size: 1.35rem;
+            font-weight: 900;
+            color: #0f172a;
+            margin: 0;
+            line-height: 1.2;
+        }
+        .login-sub{
+            font-size: .92rem;
+            color: #64748b;
+            margin-top: 6px;
+        }
+        .hint{
+            margin-top: 12px;
+            font-size: .82rem;
+            color: #64748b;
+            text-align:center;
+        }
+        </style>
+        """,
         unsafe_allow_html=True,
     )
 
-    st.markdown('<div class="login-wrapper"><div class="login-card">', unsafe_allow_html=True)
+    st.markdown('<div class="login-page">', unsafe_allow_html=True)
+    st.markdown('<div class="login-card">', unsafe_allow_html=True)
 
-    st.markdown('<div class="login-icon">🔐</div>', unsafe_allow_html=True)
-    st.markdown('<div class="login-title">Bem-vindo de volta</div>', unsafe_allow_html=True)
-    st.markdown('<div class="login-sub">Entre com suas credenciais para acessar o painel</div>', unsafe_allow_html=True)
+    st.markdown(
+        """
+        <div class="login-top">
+          <div class="login-icon">🔐</div>
+          <p class="login-title">Bem-vindo de volta!</p>
+          <div class="login-sub">Entre com suas credenciais para acessar o painel</div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
 
-    with st.form("login_form", clear_on_submit=False):
-        email = st.text_input("E-mail", placeholder="seu@email.com")
-        senha = st.text_input("Senha", type="password", placeholder="••••••••")
-        entrar = st.form_submit_button("Entrar", type="primary", use_container_width=True)
+    # Se secrets não estiver ok, mostra aviso claro
+    if not users:
+        st.error('Secrets não configurado. Crie [auth.users] em Settings → Secrets.')
+        st.markdown(
+            """
+            <div class="hint">
+            Exemplo (TOML):<br/>
+            <code>[auth.users]</code><br/>
+            <code>"adm@brave" = "123456"</code><br/>
+            <code>"gestor@brave" = "123456"</code>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+        st.markdown("</div></div>", unsafe_allow_html=True)
+        st.stop()
+
+    # inputs
+    email = st.text_input("E-mail", placeholder="seu@email.com")
+    senha = st.text_input("Senha", type="password", placeholder="••••••••")
+
+    col1, col2 = st.columns([1, 1])
+    with col1:
+        entrar = st.button("Entrar", use_container_width=True)
+    with col2:
+        sair = st.button("Limpar", use_container_width=True)
+
+    if sair:
+        st.session_state.pop("logado", None)
+        st.session_state.pop("usuario", None)
+        st.rerun()
 
     if entrar:
-        email_n = (email or "").strip().lower()
-        ok = _verify_user(email_n, senha or "", users)
-
-        if ok:
+        if _verify_user(email.strip().lower(), senha, users):
             st.session_state["logado"] = True
-            st.session_state["usuario"] = email_n
+            st.session_state["usuario"] = email.strip().lower()
             st.rerun()
         else:
             st.error("Usuário ou senha inválidos")
 
-    st.markdown('<div class="login-links">Esqueci minha senha</div>', unsafe_allow_html=True)
+    st.markdown('<div class="hint">Dica: use o e-mail cadastrado no Secrets.</div>', unsafe_allow_html=True)
+
     st.markdown("</div></div>", unsafe_allow_html=True)
 
 
@@ -188,7 +205,7 @@ if not st.session_state["logado"]:
     tela_login()
     st.stop()
 
-# ===================== PATHS / DADOS =====================
+# ===================== APP (SEU PAINEL) =====================
 BASE_DIR = Path(__file__).resolve().parent.parent
 DATA_DIR = BASE_DIR / "data"
 
@@ -201,10 +218,15 @@ MESES = ["TRIMESTRE", "JANEIRO", "FEVEREIRO", "MARÇO"]
 st.markdown(
     """
 <style>
+/* Remove menu/footer */
 #MainMenu {visibility: hidden;}
 footer {visibility: hidden;}
 
-/* Sidebar menor */
+/* Impedir recolher */
+button[title="Collapse sidebar"]{ display:none !important; }
+div[data-testid="collapsedControl"]{ display:none !important; }
+
+/* Sidebar */
 section[data-testid="stSidebar"]{
   background: #0b1220;
   border-right: 1px solid rgba(255,255,255,.08);
@@ -215,7 +237,7 @@ section[data-testid="stSidebar"] *{ color: #e5e7eb; }
 section[data-testid="stSidebar"] .stMarkdown p,
 section[data-testid="stSidebar"] .stMarkdown div{ color:#e5e7eb; }
 
-/* Inputs do Streamlit na sidebar */
+/* Inputs na sidebar */
 section[data-testid="stSidebar"] input,
 section[data-testid="stSidebar"] textarea,
 section[data-testid="stSidebar"] div[role="combobox"]{
@@ -228,10 +250,10 @@ section[data-testid="stSidebar"] label{
   font-weight: 800 !important;
 }
 
-/* Layout geral */
+/* Layout */
 .block-container { padding-top: 1.2rem; padding-bottom: 2rem; max-width: 1400px; }
 
-/* títulos da sidebar */
+/* Sidebar títulos */
 .sb-brand{ display:flex; gap:10px; align-items:center; padding: 6px 2px 2px 2px; }
 .sb-logo{
   width: 42px; height: 42px; border-radius: 12px;
@@ -248,7 +270,7 @@ section[data-testid="stSidebar"] label{
 }
 .sb-divider{ height:1px; background: rgba(255,255,255,.10); margin: 14px 0; }
 
-/* “abas” do menu (estético) */
+/* Pills menu */
 .nav-pill{
   border: 1px solid rgba(255,255,255,.10);
   background: rgba(255,255,255,.06);
@@ -290,6 +312,7 @@ section[data-testid="stSidebar"] label{
 .kpi-value{ font-size:1.55rem; font-weight: 950; margin-top:6px; }
 .kpi-sub{ font-size:.85rem; color: rgba(15,23,42,.55); margin-top:2px; }
 
+/* Seções */
 .section{
   border: 1px solid rgba(15,23,42,.10);
   background: #fff;
@@ -306,6 +329,7 @@ section[data-testid="stSidebar"] label{
   align-items:center;
 }
 
+/* Cards */
 .person-card{
   border:1px solid rgba(15,23,42,.10);
   background:#fff;
@@ -500,8 +524,7 @@ def calcula_mes(df_mes: pd.DataFrame, nome_mes: str) -> pd.DataFrame:
 
             if item_norm in [up("PRODUÇÃO"), up("PRODUCAO")]:
                 bateu = bool_safe(row.get("BATEU_PRODUCAO"), True)
-                if bateu:
-                    recebido += parcela
+                if bateu: recebido += parcela
                 else:
                     perdas += parcela
                     perdeu_itens.append("Produção")
@@ -509,8 +532,7 @@ def calcula_mes(df_mes: pd.DataFrame, nome_mes: str) -> pd.DataFrame:
 
             if item_norm in [up("TEMPO MÉDIO GERAL DE ANÁLISE"), up("TEMPO MEDIO GERAL DE ANALISE")]:
                 bateu = bool_safe(row.get("BATEU_TMG_GERAL"), True)
-                if bateu:
-                    recebido += parcela
+                if bateu: recebido += parcela
                 else:
                     perdas += parcela
                     perdeu_itens.append("Tempo Médio Geral de Análise")
@@ -518,8 +540,7 @@ def calcula_mes(df_mes: pd.DataFrame, nome_mes: str) -> pd.DataFrame:
 
             if item_norm in [up("TEMPO MÉDIO DE ANÁLISE DO ANALISTA"), up("TEMPO MEDIO DE ANALISE DO ANALISTA")]:
                 bateu = bool_safe(row.get("BATEU_TMA_ANALISTA"), True)
-                if bateu:
-                    recebido += parcela
+                if bateu: recebido += parcela
                 else:
                     perdas += parcela
                     perdeu_itens.append("Tempo Médio do Analista")
@@ -527,8 +548,7 @@ def calcula_mes(df_mes: pd.DataFrame, nome_mes: str) -> pd.DataFrame:
 
             if item_norm in [up("TEMPO MÉDIO DA FILA"), up("TEMPO MEDIO DA FILA")]:
                 bateu = bool_safe(row.get("BATEU_TEMPO_FILA"), True)
-                if bateu:
-                    recebido += parcela
+                if bateu: recebido += parcela
                 else:
                     perdas += parcela
                     perdeu_itens.append("Tempo Médio da Fila")
@@ -536,8 +556,7 @@ def calcula_mes(df_mes: pd.DataFrame, nome_mes: str) -> pd.DataFrame:
 
             if item_norm == up("CONFORMIDADE"):
                 bateu = bool_safe(row.get("BATEU_CONFORMIDADE"), True)
-                if bateu:
-                    recebido += parcela
+                if bateu: recebido += parcela
                 else:
                     perdas += parcela
                     perdeu_itens.append("Conformidade")
@@ -623,8 +642,8 @@ with st.sidebar:
 
     st.markdown(
         f"""
-<div class="nav-pill {'active' if pagina=='Dashboard' else ''}">Dashboard</div>
-<div class="nav-pill {'active' if pagina=='Relatório' else ''}">Relatório</div>
+<div class="nav-pill {'active' if pagina=='Dashboard' else ''}">🏠 Dashboard</div>
+<div class="nav-pill {'active' if pagina=='Relatório' else ''}">📄 Relatório</div>
 """,
         unsafe_allow_html=True,
     )
@@ -636,33 +655,38 @@ with st.sidebar:
     dados_calc = montar_base(filtro_mes)
     dados_calc = dados_calc[dados_calc["FUNÇÃO"].astype(str).apply(up) == up("ANALISTA")].copy()
 
-    empresas = ["Todas"] + (sorted([c for c in dados_calc["EMPRESA"].dropna().unique()]) if "EMPRESA" in dados_calc.columns else [])
+    EMPRESAs = ["Todas"] + (sorted([c for c in dados_calc["EMPRESA"].dropna().unique()]) if "EMPRESA" in dados_calc.columns else [])
     tempos = ["Todos"] + (sorted([t for t in dados_calc["TEMPO DE CASA"].dropna().unique()]) if "TEMPO DE CASA" in dados_calc.columns else [])
 
     with st.form("filtros_form", clear_on_submit=False):
         filtro_nome = st.text_input("Buscar por nome", value=st.session_state.get("f_nome", ""))
-        filtro_empresa = st.selectbox("Empresa", empresas, index=0)
+        filtro_EMPRESA = st.selectbox("EMPRESA", EMPRESAs, index=0)
         filtro_tempo = st.selectbox("Tempo de casa", tempos, index=0)
         aplicar = st.form_submit_button("Aplicar filtros")
     if aplicar:
         st.session_state["f_nome"] = filtro_nome
 
+    st.markdown('<div class="sb-divider"></div>', unsafe_allow_html=True)
     st.markdown(
         f"""
-<div class="sb-divider"></div>
 <div style="opacity:.85;font-weight:900;font-size:.80rem;">Logado como</div>
 <div style="font-weight:950;margin-top:2px;">{st.session_state.get("usuario","")}</div>
 """,
         unsafe_allow_html=True,
     )
 
+    if st.button("Sair", use_container_width=True):
+        st.session_state["logado"] = False
+        st.session_state.pop("usuario", None)
+        st.rerun()
+
 # ===================== CONTEÚDO =====================
 dados_view = dados_calc.copy()
 
 if filtro_nome:
     dados_view = dados_view[dados_view["NOME"].astype(str).str.contains(filtro_nome, case=False, na=False)]
-if filtro_empresa != "Todas" and "EMPRESA" in dados_view.columns:
-    dados_view = dados_view[dados_view["EMPRESA"] == filtro_empresa]
+if filtro_EMPRESA != "Todas" and "EMPRESA" in dados_view.columns:
+    dados_view = dados_view[dados_view["EMPRESA"] == filtro_EMPRESA]
 if filtro_tempo != "Todos" and "TEMPO DE CASA" in dados_view.columns:
     dados_view = dados_view[dados_view["TEMPO DE CASA"] == filtro_tempo]
 
@@ -691,7 +715,7 @@ left, right = st.columns([1.05, 1.25], gap="large")
 
 with left:
     st.markdown('<div class="section">', unsafe_allow_html=True)
-    st.markdown('<div class="section-title">Resumo</div>', unsafe_allow_html=True)
+    st.markdown('<div class="section-title">📌 Resumo</div>', unsafe_allow_html=True)
 
     cumprimento_medio = 0.0 if total_possivel == 0 else (recebido / total_possivel) * 100.0
     resumo = pd.DataFrame(
@@ -711,15 +735,18 @@ with left:
         top["RECEBIDO"] = top["RECEBIDO"].apply(brl)
     if "PERDA" in top.columns:
         top["PERDA"] = top["PERDA"].apply(brl)
+    if "EMPRESA" in top.columns:
+        top["EMPRESA"] = top["EMPRESA"].astype(str).str.title()
 
     st.markdown('<div style="height:10px"></div>', unsafe_allow_html=True)
-    st.markdown('<div class="section-title">Top 5</div>', unsafe_allow_html=True)
+    st.markdown('<div class="section-title">🏆 Top 5</div>', unsafe_allow_html=True)
     st.dataframe(top, use_container_width=True, hide_index=True)
+
     st.markdown("</div>", unsafe_allow_html=True)
 
 with right:
     st.markdown('<div class="section">', unsafe_allow_html=True)
-    st.markdown('<div class="section-title">Analistas</div>', unsafe_allow_html=True)
+    st.markdown('<div class="section-title">👥 Analistas</div>', unsafe_allow_html=True)
 
     cols_cards = st.columns(2, gap="medium")
 
@@ -730,14 +757,14 @@ with right:
         per = float(row.get("PERDA", 0) or 0)
 
         nome = str(row.get("NOME", "")).title()
-        empresa = str(row.get("EMPRESA", "")).title() if "EMPRESA" in dados_view.columns else ""
+        EMPRESA = str(row.get("EMPRESA", "")).title() if "EMPRESA" in dados_view.columns else ""
         tempo = str(row.get("TEMPO DE CASA", "")).strip() if "TEMPO DE CASA" in dados_view.columns else ""
 
         obs = texto_obs(row.get("_obs", row.get("OBSERVAÇÃO", "")))
         perdidos_txt = texto_obs(row.get("INDICADORES_NAO_ENTREGUES", ""))
 
         tag = "Excelente" if pct >= 95 else ("Atenção" if pct < 80 else "Ok")
-        meta_line = f"Analista — {empresa}" if empresa else "Analista"
+        meta_line = f"Analista — {EMPRESA}" if EMPRESA else "Analista"
         if tempo:
             meta_line = f"{meta_line} • {tempo}"
 
