@@ -13,6 +13,9 @@ import json
 from pathlib import Path
 import unicodedata
 import re
+import hmac
+import hashlib
+
 
 # ===================== CONFIG =====================
 st.set_page_config(
@@ -191,7 +194,115 @@ section[data-testid="stSidebar"] label{
 """,
     unsafe_allow_html=True,
 )
+# ===================== LOGIN (TELA INICIAL) =====================
+# Usuários e senhas (simples). Depois eu te mostro como passar isso pro secrets.toml.
+USUARIOS = {
+    # email: senha
+    "wendell_bnascimento@outlook.com": "123456",
+    "analistas@brave": "brave123",
+}
 
+def _safe_eq(a: str, b: str) -> bool:
+    # comparação segura (evita timing attacks simples)
+    return hmac.compare_digest(a.encode("utf-8"), b.encode("utf-8"))
+
+def autenticar(email: str, senha: str) -> bool:
+    email = (email or "").strip().lower()
+    senha = (senha or "").strip()
+    if email not in USUARIOS:
+        return False
+    return _safe_eq(USUARIOS[email], senha)
+
+def tela_login():
+    st.markdown(
+        """
+<style>
+/* fundo centralizado estilo “sistema” */
+.login-wrap{
+  min-height: calc(100vh - 120px);
+  display:flex;
+  align-items:center;
+  justify-content:center;
+}
+.login-card{
+  width: 520px;
+  max-width: calc(100vw - 48px);
+  background: #ffffff;
+  border: 1px solid rgba(15,23,42,.10);
+  border-radius: 18px;
+  box-shadow: 0 14px 40px rgba(15,23,42,.10);
+  padding: 26px 26px 18px 26px;
+}
+.login-top{
+  display:flex; flex-direction:column; align-items:center; gap:10px;
+  margin-bottom: 10px;
+}
+.login-logo{
+  width: 58px; height: 58px; border-radius: 16px;
+  background: rgba(59,130,246,.12);
+  border: 1px solid rgba(59,130,246,.20);
+  display:flex; align-items:center; justify-content:center;
+  font-size: 26px; font-weight: 950;
+}
+.login-title{ font-size: 1.35rem; font-weight: 950; margin: 0; }
+.login-sub{ color: rgba(15,23,42,.60); margin: 0; font-size: .95rem; text-align:center; }
+
+.login-links{
+  text-align:center;
+  margin-top: 10px;
+  color: rgba(15,23,42,.60);
+  font-size: .90rem;
+}
+.login-links span{ opacity:.7; }
+</style>
+        """,
+        unsafe_allow_html=True,
+    )
+
+    st.markdown(
+        """
+<div class="login-wrap">
+  <div class="login-card">
+    <div class="login-top">
+      <div class="login-logo">📄</div>
+      <h2 class="login-title">Bem-vindo de volta!</h2>
+      <p class="login-sub">Entre com suas credenciais para acessar o sistema</p>
+    </div>
+""",
+        unsafe_allow_html=True,
+    )
+
+    with st.form("login_form", clear_on_submit=False):
+        email = st.text_input("E-mail", value=st.session_state.get("login_email", ""))
+        senha = st.text_input("Senha", type="password")
+        entrar = st.form_submit_button("Entrar")
+
+    if entrar:
+        ok = autenticar(email, senha)
+        if ok:
+            st.session_state["autenticado"] = True
+            st.session_state["login_email"] = (email or "").strip().lower()
+            st.rerun()
+        else:
+            st.session_state["autenticado"] = False
+            st.error("Credenciais inválidas.")
+
+    st.markdown(
+        """
+    <div class="login-links">
+      <div><span>Esqueci minha senha</span></div>
+      <div style="margin-top:6px;"><span>Não tem conta? Cadastre-se</span></div>
+    </div>
+  </div>
+</div>
+""",
+        unsafe_allow_html=True,
+    )
+
+# Gate de acesso: se não estiver autenticado, mostra login e para o app
+if not st.session_state.get("autenticado", False):
+    tela_login()
+    st.stop()
 # ===================== HELPERS =====================
 def norm_txt(s: str) -> str:
     if s is None or (isinstance(s, float) and pd.isna(s)):
@@ -616,3 +727,4 @@ with right:
             )
 
     st.markdown("</div>", unsafe_allow_html=True)
+
