@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 # ============================================================
-# Painel de Bônus Trimestral (T1) | ANALISTAS (individual por linha no Excel)
+# Painel de Bônus Trimestral (T1) | ANALISTAS
+# Avaliação individual por linha no Excel (colunas BATEU_*)
 # Meses: JANEIRO, FEVEREIRO, MARÇO
 # ============================================================
 
@@ -10,16 +11,101 @@ import json
 from pathlib import Path
 import unicodedata, re
 
-# ===================== CONFIG BÁSICA =====================
-st.set_page_config(page_title="Painel de Bônus | Analistas", layout="wide")
-st.title("🧠 Painel de Bônus Trimestral | Analistas")
+# ===================== CONFIG =====================
+st.set_page_config(page_title="Painel de Bônus (T1) | Analistas", layout="wide")
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 DATA_DIR = BASE_DIR / "data"
 
+# ===================== ESTILO (UI PROFISSIONAL) =====================
+st.markdown(
+    """
+<style>
+/* App base */
+.block-container { padding-top: 1.2rem; padding-bottom: 2rem; max-width: 1250px; }
+h1, h2, h3 { letter-spacing: -0.02em; }
+
+/* Sidebar */
+section[data-testid="stSidebar"] { background: #0b1220; }
+section[data-testid="stSidebar"] * { color: #e5e7eb !important; }
+section[data-testid="stSidebar"] a { color: #e5e7eb !important; }
+section[data-testid="stSidebar"] .stRadio > label,
+section[data-testid="stSidebar"] .stSelectbox > label,
+section[data-testid="stSidebar"] .stTextInput > label { font-weight: 700; opacity: .95; }
+
+/* Remove menu/footer */
+#MainMenu {visibility: hidden;}
+footer {visibility: hidden;}
+header {visibility: hidden;}
+
+/* Header */
+.page-title { font-size: 1.7rem; font-weight: 900; line-height: 1.1; }
+.page-sub { color: rgba(15,23,42,.60); font-size: .95rem; margin-top: 4px; }
+
+/* KPI cards */
+.kpi-row { display:flex; gap:14px; flex-wrap:wrap; margin: 10px 0 14px 0; }
+.kpi {
+  flex: 1 1 230px;
+  border: 1px solid rgba(15,23,42,.10);
+  background: #ffffff;
+  border-radius: 14px;
+  padding: 14px 14px;
+  box-shadow: 0 8px 24px rgba(15,23,42,.06);
+}
+.kpi-top { display:flex; align-items:center; justify-content:space-between; }
+.kpi-title { font-size: 0.90rem; font-weight: 700; color: rgba(15,23,42,.72); }
+.kpi-icon {
+  width: 36px; height: 36px; border-radius: 12px;
+  display:flex; align-items:center; justify-content:center;
+  background: rgba(15,23,42,.06);
+  font-size: 18px;
+}
+.kpi-value { font-size: 1.55rem; font-weight: 900; margin-top: 6px; }
+.kpi-sub { font-size: 0.85rem; color: rgba(15,23,42,.55); margin-top: 2px; }
+
+/* Section cards */
+.section {
+  border: 1px solid rgba(15,23,42,.10);
+  background: #ffffff;
+  border-radius: 16px;
+  padding: 14px 14px;
+  box-shadow: 0 8px 24px rgba(15,23,42,.06);
+}
+.section-title { font-weight: 900; font-size: 1.05rem; margin-bottom: 10px; display:flex; gap:8px; align-items:center; }
+
+/* Person cards */
+.person-card{
+  border:1px solid rgba(15,23,42,.10);
+  background:#ffffff;
+  border-radius:16px;
+  padding:14px 14px;
+  box-shadow: 0 10px 28px rgba(15,23,42,.06);
+  margin-bottom: 12px;
+}
+.person-name{ font-size:1.02rem; font-weight:900; margin:0; }
+.person-meta{ margin:4px 0 10px 0; color: rgba(15,23,42,.70); font-weight:700; font-size:.90rem;}
+.person-grid{ display:grid; grid-template-columns: 1fr 1fr; gap:8px; margin-top:8px; }
+.pill{
+  display:inline-flex; gap:8px; align-items:center;
+  background: rgba(15,23,42,.05);
+  border:1px solid rgba(15,23,42,.08);
+  padding:6px 10px;
+  border-radius: 999px;
+  font-size:.82rem;
+  font-weight:750;
+  color: rgba(15,23,42,.75);
+}
+.bar { height: 10px; background: rgba(15,23,42,.10); border-radius: 999px; overflow:hidden; }
+.bar > div { height:100%; background: #0f172a; }
+.muted { color: rgba(15,23,42,.55); font-size:.86rem; }
+.warn { color: #b45309; font-weight: 900; }
+</style>
+""",
+    unsafe_allow_html=True,
+)
+
 # ===================== HELPERS =====================
 def norm_txt(s: str) -> str:
-    """UPPER + remove acentos + colapsa espaços internos."""
     if s is None or (isinstance(s, float) and pd.isna(s)):
         return ""
     s = str(s).strip().upper()
@@ -32,26 +118,19 @@ def up(s):
     return norm_txt(s)
 
 def texto_obs(valor):
-    if pd.isna(valor):
+    if valor is None or (isinstance(valor, float) and pd.isna(valor)):
         return ""
     s = str(valor).strip()
     return "" if s.lower() in ["none", "nan", ""] else s
 
 def bool_safe(v, default=True) -> bool:
-    """
-    Converte TRUE/FALSE, SIM/NÃO, 1/0 (e variações) para bool.
-    Se vazio/NaN: default.
-    """
     if v is None or (isinstance(v, float) and pd.isna(v)):
         return default
     s = str(v).strip().lower()
-
     if s in ["true", "t", "1", "sim", "s", "yes", "y", "ok"]:
         return True
     if s in ["false", "f", "0", "nao", "não", "n", "no"]:
         return False
-
-    # tenta numérico
     try:
         return float(s) != 0
     except Exception:
@@ -65,12 +144,61 @@ def elegivel(valor_meta, obs):
         return False, "Licença no mês"
     return True, ""
 
-# ===================== CARREGAMENTO ======================
+def brl(x: float) -> str:
+    try:
+        return f"R$ {float(x):,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
+    except Exception:
+        return "R$ 0,00"
+
+def render_kpis(total_possivel, recebido, perda, qtd):
+    st.markdown(
+        f"""
+    <div class="kpi-row">
+      <div class="kpi">
+        <div class="kpi-top">
+          <div class="kpi-title">Total possível</div>
+          <div class="kpi-icon">R$</div>
+        </div>
+        <div class="kpi-value">{brl(total_possivel)}</div>
+        <div class="kpi-sub">Base filtrada</div>
+      </div>
+
+      <div class="kpi">
+        <div class="kpi-top">
+          <div class="kpi-title">Recebido</div>
+          <div class="kpi-icon">+</div>
+        </div>
+        <div class="kpi-value">{brl(recebido)}</div>
+        <div class="kpi-sub">Somatório do período</div>
+      </div>
+
+      <div class="kpi">
+        <div class="kpi-top">
+          <div class="kpi-title">Deixou de ganhar</div>
+          <div class="kpi-icon">!</div>
+        </div>
+        <div class="kpi-value">{brl(perda)}</div>
+        <div class="kpi-sub">Perdas por metas</div>
+      </div>
+
+      <div class="kpi">
+        <div class="kpi-top">
+          <div class="kpi-title">Analistas</div>
+          <div class="kpi-icon">#</div>
+        </div>
+        <div class="kpi-value">{int(qtd)}</div>
+        <div class="kpi-sub">Registros no filtro</div>
+      </div>
+    </div>
+    """,
+        unsafe_allow_html=True,
+    )
+
+# ===================== ARQUIVOS ======================
 def load_json(path: Path):
     with open(path, "r", encoding="utf-8") as f:
         return json.load(f)
 
-# >>> Ajuste apenas se seus nomes de arquivos forem diferentes
 PESOS_PATH = DATA_DIR / "pesos_analistas.json"
 PLANILHA_PATH = DATA_DIR / "RESUMO PARA PAINEL - ANALISTAS.xlsx"
 
@@ -80,9 +208,20 @@ except Exception as e:
     st.error(f"Erro ao carregar pesos: {e}\nArquivo esperado: {PESOS_PATH.name}")
     st.stop()
 
+# ===================== MESES (T1) =====================
 MESES = ["TRIMESTRE", "JANEIRO", "FEVEREIRO", "MARÇO"]
-filtro_mes = st.radio("📅 Selecione o mês:", MESES, horizontal=True)
 
+# ===================== SIDEBAR (FILTROS) =====================
+with st.sidebar:
+    st.markdown("### Painel de Bônus")
+    filtro_mes = st.radio("Período", MESES, horizontal=False)
+    st.markdown("---")
+    filtro_nome = st.text_input("Buscar por nome", "")
+    filtro_cidade = st.selectbox("Cidade", ["Todas"])
+    filtro_tempo = st.selectbox("Tempo de casa", ["Todos"])
+    st.caption("Observação: o painel considera somente FUNÇÃO = ANALISTA.")
+
+# ===================== LEITURA DA PLANILHA =====================
 def ler_planilha(mes: str) -> pd.DataFrame:
     if PLANILHA_PATH.exists():
         return pd.read_excel(PLANILHA_PATH, sheet_name=mes)
@@ -92,12 +231,10 @@ def ler_planilha(mes: str) -> pd.DataFrame:
         st.stop()
     return pd.read_excel(sorted(candidatos)[0], sheet_name=mes)
 
-# ===================== VALIDAÇÃO DE COLUNAS =====================
 COLS_OBRIG = [
     "NOME", "FUNÇÃO", "VALOR MENSAL META",
     "BATEU_PRODUCAO", "BATEU_TMG_GERAL", "BATEU_TMA_ANALISTA", "BATEU_TEMPO_FILA", "BATEU_CONFORMIDADE"
 ]
-COLS_SUG = ["CIDADE", "DATA DE ADMISSÃO", "TEMPO DE CASA", "OBSERVAÇÃO"]
 
 def checar_colunas(df: pd.DataFrame, mes: str):
     faltando = [c for c in COLS_OBRIG if c not in df.columns]
@@ -111,17 +248,13 @@ def checar_colunas(df: pd.DataFrame, mes: str):
 # ===================== CÁLCULO (POR MÊS) =====================
 def calcula_mes(df_mes: pd.DataFrame, nome_mes: str) -> pd.DataFrame:
     df = df_mes.copy()
-
-    # valida colunas
     checar_colunas(df, nome_mes)
 
     def calcula_recebido(row):
         func = up(row.get("FUNÇÃO", ""))
-        nome = row.get("NOME", "")
         obs = row.get("OBSERVAÇÃO", "")
         valor_meta = row.get("VALOR MENSAL META", 0)
 
-        # painel SOMENTE Analista
         if func != up("ANALISTA"):
             return pd.Series({
                 "MES": nome_mes, "META": 0.0, "RECEBIDO": 0.0, "PERDA": 0.0, "%": 0.0,
@@ -137,11 +270,9 @@ def calcula_mes(df_mes: pd.DataFrame, nome_mes: str) -> pd.DataFrame:
                 "_badge": motivo, "_obs": texto_obs(obs), "perdeu_itens": perdeu_itens
             })
 
-        # pesos do analista
         metainfo = PESOS.get(up("ANALISTA"), {})
         itens = metainfo.get("metas", {})
 
-        # meta vem do Excel
         total_func = float(valor_meta if pd.notna(valor_meta) else 0.0)
 
         recebido, perdas = 0.0, 0.0
@@ -150,8 +281,7 @@ def calcula_mes(df_mes: pd.DataFrame, nome_mes: str) -> pd.DataFrame:
             parcela = total_func * float(peso)
             item_norm = up(item)
 
-            # PRODUÇÃO (individual)
-            if item_norm == up("PRODUÇÃO") or item_norm == up("PRODUCAO"):
+            if item_norm in [up("PRODUÇÃO"), up("PRODUCAO")]:
                 bateu = bool_safe(row.get("BATEU_PRODUCAO"), True)
                 if bateu:
                     recebido += parcela
@@ -160,8 +290,7 @@ def calcula_mes(df_mes: pd.DataFrame, nome_mes: str) -> pd.DataFrame:
                     perdeu_itens.append("Produção")
                 continue
 
-            # TEMPO MÉDIO GERAL (marca)
-            if item_norm == up("TEMPO MÉDIO GERAL DE ANÁLISE") or item_norm == up("TEMPO MEDIO GERAL DE ANALISE"):
+            if item_norm in [up("TEMPO MÉDIO GERAL DE ANÁLISE"), up("TEMPO MEDIO GERAL DE ANALISE")]:
                 bateu = bool_safe(row.get("BATEU_TMG_GERAL"), True)
                 if bateu:
                     recebido += parcela
@@ -170,8 +299,7 @@ def calcula_mes(df_mes: pd.DataFrame, nome_mes: str) -> pd.DataFrame:
                     perdeu_itens.append("Tempo Médio Geral de Análise")
                 continue
 
-            # TEMPO MÉDIO DO ANALISTA (individual)
-            if item_norm == up("TEMPO MÉDIO DE ANÁLISE DO ANALISTA") or item_norm == up("TEMPO MEDIO DE ANALISE DO ANALISTA"):
+            if item_norm in [up("TEMPO MÉDIO DE ANÁLISE DO ANALISTA"), up("TEMPO MEDIO DE ANALISE DO ANALISTA")]:
                 bateu = bool_safe(row.get("BATEU_TMA_ANALISTA"), True)
                 if bateu:
                     recebido += parcela
@@ -180,8 +308,7 @@ def calcula_mes(df_mes: pd.DataFrame, nome_mes: str) -> pd.DataFrame:
                     perdeu_itens.append("Tempo Médio de Análise do Analista")
                 continue
 
-            # TEMPO MÉDIO DA FILA
-            if item_norm == up("TEMPO MÉDIO DA FILA") or item_norm == up("TEMPO MEDIO DA FILA"):
+            if item_norm in [up("TEMPO MÉDIO DA FILA"), up("TEMPO MEDIO DA FILA")]:
                 bateu = bool_safe(row.get("BATEU_TEMPO_FILA"), True)
                 if bateu:
                     recebido += parcela
@@ -190,7 +317,6 @@ def calcula_mes(df_mes: pd.DataFrame, nome_mes: str) -> pd.DataFrame:
                     perdeu_itens.append("Tempo Médio da Fila")
                 continue
 
-            # CONFORMIDADE
             if item_norm == up("CONFORMIDADE"):
                 bateu = bool_safe(row.get("BATEU_CONFORMIDADE"), True)
                 if bateu:
@@ -200,7 +326,7 @@ def calcula_mes(df_mes: pd.DataFrame, nome_mes: str) -> pd.DataFrame:
                     perdeu_itens.append("Conformidade")
                 continue
 
-            # qualquer outra meta (se existir no JSON) -> considera batida
+            # Qualquer meta não mapeada: considera batida
             recebido += parcela
 
         meta = total_func
@@ -213,98 +339,83 @@ def calcula_mes(df_mes: pd.DataFrame, nome_mes: str) -> pd.DataFrame:
 
     calc = df.apply(calcula_recebido, axis=1)
     out = pd.concat([df.reset_index(drop=True), calc], axis=1)
-
-    # remove tudo que não é analista (garantia extra)
     out = out[out["FUNÇÃO"].astype(str).apply(up) == up("ANALISTA")].copy()
     return out
 
-# ===================== LEITURA (TRIMESTRE OU MÊS) =====================
-if filtro_mes == "TRIMESTRE":
-    try:
+# ===================== CONSOLIDAÇÃO =====================
+def montar_base(periodo: str) -> pd.DataFrame:
+    if periodo == "TRIMESTRE":
         df_j, df_f, df_m = [ler_planilha(m) for m in ["JANEIRO", "FEVEREIRO", "MARÇO"]]
-        st.success("✅ Planilhas carregadas com sucesso: JANEIRO, FEVEREIRO e MARÇO!")
-    except Exception as e:
-        st.error(f"Erro ao ler a planilha: {e}")
-        st.stop()
+        dados_full = pd.concat(
+            [calcula_mes(df_j, "JANEIRO"), calcula_mes(df_f, "FEVEREIRO"), calcula_mes(df_m, "MARÇO")],
+            ignore_index=True,
+        )
 
-    dados_full = pd.concat([
-        calcula_mes(df_j, "JANEIRO"),
-        calcula_mes(df_f, "FEVEREIRO"),
-        calcula_mes(df_m, "MARÇO")
-    ], ignore_index=True)
+        group_cols = [c for c in ["CIDADE", "NOME", "FUNÇÃO", "DATA DE ADMISSÃO", "TEMPO DE CASA"] if c in dados_full.columns]
+        if not group_cols:
+            group_cols = ["NOME", "FUNÇÃO"]
 
-    group_cols = []
-    for c in ["CIDADE", "NOME", "FUNÇÃO", "DATA DE ADMISSÃO", "TEMPO DE CASA"]:
-        if c in dados_full.columns:
-            group_cols.append(c)
+        agg = (
+            dados_full.groupby(group_cols, dropna=False)
+            .agg(
+                {
+                    "META": "sum",
+                    "RECEBIDO": "sum",
+                    "PERDA": "sum",
+                    "_obs": lambda x: ", ".join(sorted({s for s in x if s})),
+                    "_badge": lambda x: " / ".join(sorted({s for s in x if s})),
+                }
+            )
+            .reset_index()
+        )
+        agg["%"] = agg.apply(lambda r: 0.0 if r["META"] == 0 else (r["RECEBIDO"] / r["META"]) * 100.0, axis=1)
 
-    if not group_cols:
-        group_cols = ["NOME", "FUNÇÃO"]
+        perdas_pessoa = (
+            dados_full.assign(_lost=lambda d: d.apply(lambda r: [f"{it} ({r['MES']})" for it in r["perdeu_itens"]], axis=1))
+            .groupby(group_cols, dropna=False)["_lost"]
+            .sum()
+            .apply(lambda L: ", ".join(sorted(set(L))))
+            .reset_index()
+            .rename(columns={"_lost": "INDICADORES_NAO_ENTREGUES"})
+        )
 
-    agg = (dados_full
-           .groupby(group_cols, dropna=False)
-           .agg({
-               "META": "sum",
-               "RECEBIDO": "sum",
-               "PERDA": "sum",
-               "_obs": lambda x: ", ".join(sorted({s for s in x if s})),
-               "_badge": lambda x: " / ".join(sorted({s for s in x if s}))
-           })
-           .reset_index())
+        out = agg.merge(perdas_pessoa, on=group_cols, how="left")
+        out["INDICADORES_NAO_ENTREGUES"] = out["INDICADORES_NAO_ENTREGUES"].fillna("")
+        return out
 
-    agg["%"] = agg.apply(lambda r: 0.0 if r["META"] == 0 else (r["RECEBIDO"] / r["META"]) * 100.0, axis=1)
+    # mês único
+    df_mes = ler_planilha(periodo)
+    out = calcula_mes(df_mes, periodo)
+    out["INDICADORES_NAO_ENTREGUES"] = out["perdeu_itens"].apply(lambda L: ", ".join(L) if isinstance(L, list) and L else "")
+    return out
 
-    perdas_pessoa = (
-        dados_full.assign(_lost=lambda d: d.apply(
-            lambda r: [f"{it} ({r['MES']})" for it in r["perdeu_itens"]],
-            axis=1))
-        .groupby(group_cols, dropna=False)["_lost"]
-        .sum()
-        .apply(lambda L: ", ".join(sorted(set(L))))
-        .reset_index()
-        .rename(columns={"_lost": "INDICADORES_NAO_ENTREGUES"})
-    )
+try:
+    dados_calc = montar_base(filtro_mes)
+except Exception as e:
+    st.error(f"Erro ao montar base: {e}")
+    st.stop()
 
-    dados_calc = agg.merge(perdas_pessoa, on=group_cols, how="left")
-    dados_calc["INDICADORES_NAO_ENTREGUES"] = dados_calc["INDICADORES_NAO_ENTREGUES"].fillna("")
-else:
-    try:
-        df_mes = ler_planilha(filtro_mes)
-        st.success(f"✅ Planilha de {filtro_mes} carregada!")
-    except Exception as e:
-        st.error(f"Erro ao ler a planilha: {e}")
-        st.stop()
-
-    dados_calc = calcula_mes(df_mes, filtro_mes)
-    dados_calc["INDICADORES_NAO_ENTREGUES"] = dados_calc["perdeu_itens"].apply(
-        lambda L: ", ".join(L) if isinstance(L, list) and L else ""
-    )
-
-# garantia final: só analistas
+# Garantia final
 dados_calc = dados_calc[dados_calc["FUNÇÃO"].astype(str).apply(up) == up("ANALISTA")].copy()
 
-# ===================== FILTROS =====================
-st.markdown("### 🔎 Filtros")
-cols_f = st.columns(3)
-
-with cols_f[0]:
-    filtro_nome = st.text_input("Buscar por nome (contém)", "")
-
-with cols_f[1]:
+# ===================== ATUALIZAÇÃO DE OPÇÕES NA SIDEBAR =====================
+# (atualiza cidade/tempo depois de ler dados)
+with st.sidebar:
     if "CIDADE" in dados_calc.columns:
         cidades = ["Todas"] + sorted([c for c in dados_calc["CIDADE"].dropna().unique()])
-        filtro_cidade = st.selectbox("Cidade", cidades)
+        filtro_cidade = st.selectbox("Cidade", cidades, index=0, key="cidade_final")
     else:
         filtro_cidade = "Todas"
 
-with cols_f[2]:
     if "TEMPO DE CASA" in dados_calc.columns:
         tempos = ["Todos"] + sorted([t for t in dados_calc["TEMPO DE CASA"].dropna().unique()])
-        filtro_tempo = st.selectbox("Tempo de casa", tempos)
+        filtro_tempo = st.selectbox("Tempo de casa", tempos, index=0, key="tempo_final")
     else:
         filtro_tempo = "Todos"
 
+# ===================== APLICA FILTROS =====================
 dados_view = dados_calc.copy()
+
 if filtro_nome:
     dados_view = dados_view[dados_view["NOME"].astype(str).str.contains(filtro_nome, case=False, na=False)]
 if filtro_cidade != "Todas" and "CIDADE" in dados_view.columns:
@@ -312,58 +423,109 @@ if filtro_cidade != "Todas" and "CIDADE" in dados_view.columns:
 if filtro_tempo != "Todos" and "TEMPO DE CASA" in dados_view.columns:
     dados_view = dados_view[dados_view["TEMPO DE CASA"] == filtro_tempo]
 
-# ===================== RESUMO =====================
-st.markdown("### 📊 Resumo Geral")
-colA, colB, colC = st.columns(3)
-with colA:
-    st.success(f"💰 Total possível: R$ {dados_view['META'].sum():,.2f}")
-with colB:
-    st.info(f"📈 Recebido: R$ {dados_view['RECEBIDO'].sum():,.2f}")
-with colC:
-    st.error(f"📉 Deixou de ganhar: R$ {dados_view['PERDA'].sum():,.2f}")
-
-# ===================== CARDS =====================
-st.markdown("### 👥 Analistas")
-cols_cards = st.columns(3)
-
 dados_view = dados_view.sort_values(by="%", ascending=False)
 
-for i, row in dados_view.iterrows():
-    pct = float(row["%"]) if pd.notna(row.get("%")) else 0.0
-    meta = float(row["META"]) if pd.notna(row.get("META")) else 0.0
-    recebido = float(row["RECEBIDO"]) if pd.notna(row.get("RECEBIDO")) else 0.0
-    perdido = float(row["PERDA"]) if pd.notna(row.get("PERDA")) else 0.0
+# ===================== HEADER + KPIs =====================
+periodo_label = "Trimestre" if filtro_mes == "TRIMESTRE" else filtro_mes
 
-    badge = row.get("_badge", "")
-    obs_txt = texto_obs(row.get("_obs", row.get("OBSERVAÇÃO", "")))
-    perdidos_txt = texto_obs(row.get("INDICADORES_NAO_ENTREGUES", ""))
+st.markdown(
+    f"""
+<div>
+  <div class="page-title">Relatório de Bônus</div>
+  <div class="page-sub">Visão consolidada de <b>{periodo_label}</b></div>
+</div>
+""",
+    unsafe_allow_html=True,
+)
 
-    bg = "#f9f9f9" if not badge else "#eeeeee"
+total_possivel = float(dados_view["META"].sum()) if "META" in dados_view.columns else 0.0
+recebido = float(dados_view["RECEBIDO"].sum()) if "RECEBIDO" in dados_view.columns else 0.0
+perda = float(dados_view["PERDA"].sum()) if "PERDA" in dados_view.columns else 0.0
+qtd = len(dados_view)
 
-    with cols_cards[list(dados_view.index).index(i) % 3]:
-        cidade_txt = ""
-        if "CIDADE" in row and pd.notna(row.get("CIDADE")) and str(row.get("CIDADE")).strip():
-            cidade_txt = f" — {str(row.get('CIDADE')).title()}"
+render_kpis(total_possivel, recebido, perda, qtd)
 
-        st.markdown(f"""
-        <div style="border:1px solid #ccc;padding:16px;border-radius:12px;margin-bottom:12px;background:{bg}">
-            <h4 style="margin:0">{str(row.get('NOME','')).title()}</h4>
-            <p style="margin:4px 0;"><strong>Analista</strong>{cidade_txt}</p>
-            <p style="margin:4px 0;">
-                <strong>Meta {'Trimestral' if filtro_mes=='TRIMESTRE' else 'Mensal'}:</strong> R$ {meta:,.2f}<br>
-                <strong>Recebido:</strong> R$ {recebido:,.2f}<br>
-                <strong>Deixou de ganhar:</strong> R$ {perdido:,.2f}<br>
-                <strong>Cumprimento:</strong> {pct:.1f}%
-            </p>
-            <div style="height: 10px; background: #ddd; border-radius: 5px; overflow: hidden;">
-                <div style="width: {max(0.0, min(100.0, pct)):.1f}%; background: black; height: 100%;"></div>
+# ===================== GRID PRINCIPAL =====================
+left, right = st.columns([1.05, 1.25], gap="large")
+
+with left:
+    st.markdown('<div class="section">', unsafe_allow_html=True)
+    st.markdown('<div class="section-title">Resumo</div>', unsafe_allow_html=True)
+
+    cumprimento_medio = 0.0 if total_possivel == 0 else (recebido / total_possivel) * 100.0
+
+    resumo = pd.DataFrame(
+        {
+            "Item": ["Total possível", "Recebido", "Deixou de ganhar", "Cumprimento médio"],
+            "Valor": [brl(total_possivel), brl(recebido), brl(perda), f"{cumprimento_medio:.1f}%"],
+        }
+    )
+    st.dataframe(resumo, use_container_width=True, hide_index=True)
+
+    top = dados_view.head(5).copy()
+    cols_top = [c for c in ["NOME", "CIDADE", "%", "RECEBIDO", "PERDA"] if c in top.columns]
+    top = top[cols_top]
+
+    if "%" in top.columns:
+        top["%"] = top["%"].apply(lambda x: f"{float(x):.1f}%")
+    if "RECEBIDO" in top.columns:
+        top["RECEBIDO"] = top["RECEBIDO"].apply(brl)
+    if "PERDA" in top.columns:
+        top["PERDA"] = top["PERDA"].apply(brl)
+    if "CIDADE" in top.columns:
+        top["CIDADE"] = top["CIDADE"].astype(str).str.title()
+
+    st.markdown('<div style="height:10px"></div>', unsafe_allow_html=True)
+    st.markdown('<div class="section-title">Top 5</div>', unsafe_allow_html=True)
+    st.dataframe(top, use_container_width=True, hide_index=True)
+
+    st.markdown('</div>', unsafe_allow_html=True)
+
+with right:
+    st.markdown('<div class="section">', unsafe_allow_html=True)
+    st.markdown('<div class="section-title">Analistas</div>', unsafe_allow_html=True)
+
+    cols_cards = st.columns(2, gap="medium")
+    for idx, (_, row) in enumerate(dados_view.iterrows()):
+        pct = float(row.get("%", 0) or 0)
+        meta = float(row.get("META", 0) or 0)
+        rec = float(row.get("RECEBIDO", 0) or 0)
+        per = float(row.get("PERDA", 0) or 0)
+
+        nome = str(row.get("NOME", "")).title()
+        cidade = str(row.get("CIDADE", "")).title() if "CIDADE" in dados_view.columns else ""
+        tempo = str(row.get("TEMPO DE CASA", "")).strip() if "TEMPO DE CASA" in dados_view.columns else ""
+
+        obs = texto_obs(row.get("_obs", row.get("OBSERVAÇÃO", "")))
+        perdidos_txt = texto_obs(row.get("INDICADORES_NAO_ENTREGUES", ""))
+
+        tag = "Excelente" if pct >= 95 else ("Atenção" if pct < 80 else "Ok")
+        meta_line = f"Analista — {cidade}" if cidade else "Analista"
+        if tempo:
+            meta_line = f"{meta_line} • {tempo}"
+
+        with cols_cards[idx % 2]:
+            st.markdown(
+                f"""
+            <div class="person-card">
+              <p class="person-name">{nome}</p>
+              <div class="person-meta">{meta_line}</div>
+
+              <div class="person-grid">
+                <div class="pill">Meta: <b>{brl(meta)}</b></div>
+                <div class="pill">Recebido: <b>{brl(rec)}</b></div>
+                <div class="pill">Perda: <b>{brl(per)}</b></div>
+                <div class="pill">Cumprimento: <b>{pct:.1f}%</b> ({tag})</div>
+              </div>
+
+              <div style="height:10px"></div>
+              <div class="bar"><div style="width:{max(0,min(100,pct)):.1f}%"></div></div>
+
+              {"<div style='height:10px'></div><div class='muted'><span class='warn'>Indicadores não entregues:</span> "+perdidos_txt+"</div>" if perdidos_txt else ""}
+              {"<div style='height:8px'></div><div class='muted'>Obs.: "+obs+"</div>" if obs else ""}
             </div>
-        </div>
-        """, unsafe_allow_html=True)
+            """,
+                unsafe_allow_html=True,
+            )
 
-        if badge:
-            st.caption(f"⚠️ {badge}")
-        if obs_txt:
-            st.caption(f"🗒️ {obs_txt}")
-        if perdidos_txt:
-            st.caption(f"🔻 Indicadores não entregues: {perdidos_txt}")
+    st.markdown('</div>', unsafe_allow_html=True)
