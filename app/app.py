@@ -29,124 +29,83 @@ def _verify_user(email: str, password: str) -> bool:
         return False
     return hmac.compare_digest(stored_hash, _sha256(password))
 
-def _login_css():
-    st.markdown(
-        """
-<style>
-/* centraliza e dá cara de tela de login */
-.login-wrap{
-  min-height: calc(100vh - 6rem);
-  display:flex;
-  align-items:center;
-  justify-content:center;
-  padding: 1.5rem 1rem;
-}
-.login-card{
-  width: 100%;
-  max-width: 520px;
-  background: #fff;
-  border: 1px solid rgba(15,23,42,.10);
-  border-radius: 18px;
-  box-shadow: 0 18px 40px rgba(15,23,42,.10);
-  padding: 22px 22px 18px 22px;
-}
-.login-top{
-  display:flex;
-  gap:14px;
-  align-items:center;
-  margin-bottom: 8px;
-}
-.login-badge{
-  width:52px;height:52px;
-  border-radius: 16px;
-  display:flex;align-items:center;justify-content:center;
-  background: rgba(59,130,246,.14);
-  border: 1px solid rgba(59,130,246,.22);
-  font-size: 22px;
-}
-.login-title{
-  font-size: 1.35rem;
-  font-weight: 950;
-  margin:0;
-}
-.login-sub{
-  margin:2px 0 0 0;
-  color: rgba(15,23,42,.60);
-  font-weight: 700;
-  font-size: .92rem;
-}
-.login-divider{
-  height:1px;
-  background: rgba(15,23,42,.08);
-  margin: 14px 0 16px 0;
-}
+def tela_login():
+    USERS = st.secrets["auth"]["users"]
 
-/* deixa botão do form com cara de CTA */
-div[data-testid="stForm"] button[kind="primary"],
-div[data-testid="stForm"] button{
-  width: 100% !important;
-  border-radius: 12px !important;
-  padding: 0.75rem 1rem !important;
-  font-weight: 900 !important;
-}
+    st.markdown("""
+    <style>
+    .login-wrapper{
+        min-height: 100vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: #f5f7fb;
+    }
+    .login-card{
+        background: #ffffff;
+        border-radius: 18px;
+        padding: 36px;
+        width: 100%;
+        max-width: 420px;
+        box-shadow: 0 20px 50px rgba(15,23,42,.12);
+        text-align: center;
+    }
+    .login-icon{
+        width:64px;
+        height:64px;
+        border-radius:18px;
+        background:#2563eb;
+        display:flex;
+        align-items:center;
+        justify-content:center;
+        margin: 0 auto 12px auto;
+        font-size:32px;
+        color:white;
+        font-weight:900;
+    }
+    .login-title{
+        font-size:1.4rem;
+        font-weight:900;
+        margin-bottom:4px;
+    }
+    .login-sub{
+        font-size:.9rem;
+        color:#64748b;
+        margin-bottom:22px;
+    }
+    </style>
+    """, unsafe_allow_html=True)
 
-/* inputs mais “sistema” */
-div[data-testid="stForm"] input{
-  border-radius: 12px !important;
-}
-</style>
-""",
-        unsafe_allow_html=True,
-    )
+    st.markdown('<div class="login-wrapper">', unsafe_allow_html=True)
+    st.markdown('<div class="login-card">', unsafe_allow_html=True)
 
-def _render_login():
-    _login_css()
+    st.markdown('<div class="login-icon">🔐</div>', unsafe_allow_html=True)
+    st.markdown('<div class="login-title">Bem-vindo de volta!</div>', unsafe_allow_html=True)
+    st.markdown('<div class="login-sub">Entre com suas credenciais para acessar o sistema</div>', unsafe_allow_html=True)
 
-    st.markdown('<div class="login-wrap"><div class="login-card">', unsafe_allow_html=True)
+    email = st.text_input("E-mail", placeholder="seu@email.com")
+    senha = st.text_input("Senha", type="password", placeholder="••••••••")
 
-    st.markdown(
-        """
-<div class="login-top">
-  <div class="login-badge">🔒</div>
-  <div>
-    <p class="login-title">Bem-vindo de volta!</p>
-    <p class="login-sub">Entre com suas credenciais para acessar o painel</p>
-  </div>
-</div>
-<div class="login-divider"></div>
-""",
-        unsafe_allow_html=True,
-    )
-
-    # mensagem de erro (se houver)
-    if st.session_state.get("login_error"):
-        st.error("Usuário ou senha inválido.")
-
-    with st.form("login_form", clear_on_submit=False):
-        email = st.text_input("E-mail", placeholder="ex: adm@brave.com")
-        pwd = st.text_input("Senha", type="password", placeholder="••••••••")
-        ok = st.form_submit_button("Entrar")
-
-    if ok:
-        if _verify_user(email.strip(), pwd):
-            st.session_state["auth_ok"] = True
-            st.session_state["login_error"] = False
+    if st.button("Entrar", use_container_width=True):
+        if email in USERS and USERS[email] == senha:
+            st.session_state["logado"] = True
+            st.session_state["usuario"] = email
             st.rerun()
         else:
-            st.session_state["auth_ok"] = False
-            st.session_state["login_error"] = True
-            st.rerun()
+            st.error("❌ Usuário ou senha inválidos")
 
-    st.markdown("</div></div>", unsafe_allow_html=True)
+    st.markdown('<div style="margin-top:14px;font-size:.85rem;color:#64748b;">Esqueci minha senha</div>', unsafe_allow_html=True)
 
-def _require_login():
-    if st.session_state.get("auth_ok"):
-        return
-    _render_login()
+    st.markdown('</div></div>', unsafe_allow_html=True)
+
+
+# Controle de sessão
+if "logado" not in st.session_state:
+    st.session_state["logado"] = False
+
+if not st.session_state["logado"]:
+    tela_login()
     st.stop()
-
-# CHAME ISSO ANTES DO RESTO DO APP
-_require_login()
 
 # ===================== CONFIG =====================
 st.set_page_config(
@@ -750,6 +709,7 @@ with right:
             )
 
     st.markdown("</div>", unsafe_allow_html=True)
+
 
 
 
