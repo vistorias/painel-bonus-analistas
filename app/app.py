@@ -51,7 +51,14 @@ section[data-testid="stSidebar"] .stMarkdown div{
 }
 
 /* remove o botão nativo de recolher (o que some) */
-button[title="Collapse sidebar"], div[data-testid="collapsedControl"] { display:none !important; }
+button[title="Collapse sidebar"] { display:none !important; }
+
+/* NÃO esconda o controle colapsado, senão não volta */
+div[data-testid="collapsedControl"]{
+  display: block !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+}
 
 /* títulos da sidebar */
 .sb-brand{
@@ -648,5 +655,6 @@ with right:
 
 # opcional: se você quiser que “Dashboard” mostre algo depois, você pode trocar o conteúdo com base em `pagina`
 # (deixei tudo no Relatório porque foi o que você pediu)
+
 
 
