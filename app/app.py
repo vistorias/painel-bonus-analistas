@@ -13,7 +13,6 @@ import json
 from pathlib import Path
 import unicodedata
 import re
-import hmac
 
 # ===================== CONFIG =====================
 st.set_page_config(
@@ -192,21 +191,20 @@ section[data-testid="stSidebar"] label{
 """,
     unsafe_allow_html=True,
 )
+
 # ===================== LOGIN =====================
-# Recomendado: usar secrets no Streamlit Cloud
-# Settings -> Secrets:
-# [auth]
-# users = { "analistas@brave" = "brave123", "wendell_bnascimento@outlook.com" = "123456" }
 
 def _safe_eq(a: str, b: str) -> bool:
     return hmac.compare_digest(a.encode("utf-8"), b.encode("utf-8"))
 
 def get_usuarios():
-    # 1) tenta pegar do secrets
+    # Streamlit Cloud: Settings -> Secrets
+    # [auth]
+    # users = { "analistas@brave" = "brave123", "wendell_bnascimento@outlook.com" = "123456" }
     try:
         return dict(st.secrets["auth"]["users"])
     except Exception:
-        # 2) fallback local (se não tiver secrets)
+        # fallback local (secrets não configurado)
         return {
             "analistas@brave": "brave123",
             "wendell_bnascimento@outlook.com": "123456",
@@ -225,22 +223,22 @@ def tela_login():
     st.markdown(
         """
 <style>
-/* limpa o padding e centraliza verticalmente */
-div.block-container{
-  padding-top: 0rem !important;
-  padding-bottom: 0rem !important;
-  max-width: 100% !important;
-}
+/* esconde header do Streamlit só no login (remove “barra branca”) */
+header[data-testid="stHeader"]{ display:none !important; }
 
-/* área central */
-.login-area{
-  min-height: calc(100vh - 60px);
+/* overlay tela toda, mas SEM bloquear clique fora do card */
+.login-overlay{
+  position: fixed;
+  inset: 0;
   display:flex;
   align-items:center;
   justify-content:center;
+  background: #ffffff;
+  z-index: 9999;
+  pointer-events: none; /* não bloqueia a página */
 }
 
-/* card */
+/* card recebe clique/teclado */
 .login-box{
   width: 520px;
   max-width: calc(100vw - 48px);
@@ -249,9 +247,9 @@ div.block-container{
   border-radius: 18px;
   box-shadow: 0 14px 40px rgba(15,23,42,.10);
   padding: 26px 26px 18px 26px;
+  pointer-events: auto; /* permite digitar e clicar */
 }
 
-/* topo */
 .login-top{
   display:flex;
   flex-direction:column;
@@ -269,7 +267,6 @@ div.block-container{
 .login-title{ font-size: 1.35rem; font-weight: 950; margin: 0; text-align:center; }
 .login-sub{ color: rgba(15,23,42,.60); margin: 0; font-size: .95rem; text-align:center; }
 
-/* links */
 .login-links{
   text-align:center;
   margin-top: 10px;
@@ -282,52 +279,55 @@ div.block-container{
         unsafe_allow_html=True,
     )
 
-    # centraliza com colunas (sem overlay por cima do form)
-    c1, c2, c3 = st.columns([1, 1.2, 1])
-    with c2:
-        st.markdown('<div class="login-area"><div class="login-box">', unsafe_allow_html=True)
+    # overlay
+    st.markdown('<div class="login-overlay">', unsafe_allow_html=True)
 
-        st.markdown(
-            """
+    # card
+    st.markdown('<div class="login-box">', unsafe_allow_html=True)
+
+    st.markdown(
+        """
 <div class="login-top">
   <div class="login-logo">📄</div>
   <h2 class="login-title">Bem-vindo de volta!</h2>
   <p class="login-sub">Entre com suas credenciais para acessar o sistema</p>
 </div>
 """,
-            unsafe_allow_html=True,
-        )
+        unsafe_allow_html=True,
+    )
 
-        with st.form("login_form", clear_on_submit=False):
-            email = st.text_input("E-mail", value=st.session_state.get("login_email", ""))
-            senha = st.text_input("Senha", type="password")
-            entrar = st.form_submit_button("Entrar", use_container_width=True)
+    with st.form("login_form", clear_on_submit=False):
+        email = st.text_input("E-mail", value=st.session_state.get("login_email", ""))
+        senha = st.text_input("Senha", type="password")
+        entrar = st.form_submit_button("Entrar", use_container_width=True)
 
-        if entrar:
-            if autenticar(email, senha):
-                st.session_state["autenticado"] = True
-                st.session_state["login_email"] = (email or "").strip().lower()
-                st.rerun()
-            else:
-                st.session_state["autenticado"] = False
-                st.error("Credenciais inválidas.")
+    if entrar:
+        if autenticar(email, senha):
+            st.session_state["autenticado"] = True
+            st.session_state["login_email"] = (email or "").strip().lower()
+            st.rerun()
+        else:
+            st.session_state["autenticado"] = False
+            st.error("Credenciais inválidas.")
 
-        st.markdown(
-            """
+    st.markdown(
+        """
 <div class="login-links">
   <div><span>Esqueci minha senha</span></div>
   <div style="margin-top:6px;"><span>Não tem conta? Cadastre-se</span></div>
 </div>
 """,
-            unsafe_allow_html=True,
-        )
+        unsafe_allow_html=True,
+    )
 
-        st.markdown("</div></div>", unsafe_allow_html=True)
-        
-# GATE: se não estiver logado, mostra login e trava o resto do app
+    st.markdown("</div>", unsafe_allow_html=True)  # fecha login-box
+    st.markdown("</div>", unsafe_allow_html=True)  # fecha login-overlay
+
+# GATE (tem que ficar ANTES de qualquer sidebar/conteúdo)
 if not st.session_state.get("autenticado", False):
     tela_login()
     st.stop()
+
 # ===================== HELPERS =====================
 def norm_txt(s: str) -> str:
     if s is None or (isinstance(s, float) and pd.isna(s)):
@@ -635,10 +635,12 @@ with st.sidebar:
 """,
         unsafe_allow_html=True,
     )
+
     st.markdown('<div class="sb-divider"></div>', unsafe_allow_html=True)
     if st.button("Sair", use_container_width=True):
         st.session_state["autenticado"] = False
         st.rerun()
+
 # ===================== CONTEÚDO =====================
 dados_view = dados_calc.copy()
 
@@ -755,5 +757,4 @@ with right:
             )
 
     st.markdown("</div>", unsafe_allow_html=True)
-
 
