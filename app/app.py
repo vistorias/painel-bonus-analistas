@@ -331,57 +331,89 @@ def calcula_mes(df_mes: pd.DataFrame, nome_mes: str) -> pd.DataFrame:
         valor_meta = row.get("VALOR MENSAL META", 0)
 
         if func != up("ANALISTA"):
-            return pd.Series({"MES": nome_mes, "META": 0.0, "RECEBIDO": 0.0, "PERDA": 0.0, "%": 0.0, "_badge": "", "_obs": texto_obs(obs), "perdeu_itens": []})
+            return pd.Series({
+                "MES": nome_mes, "META": 0.0, "RECEBIDO": 0.0, "PERDA": 0.0, "%": 0.0,
+                "_badge": "", "_obs": texto_obs(obs), "perdeu_itens": []
+            })
 
         ok, motivo = elegivel(valor_meta, obs)
         perdeu_itens = []
         if not ok:
-            return pd.Series({"MES": nome_mes, "META": 0.0, "RECEBIDO": 0.0, "PERDA": 0.0, "%": 0.0, "_badge": motivo, "_obs": texto_obs(obs), "perdeu_itens": perdeu_itens})
+            return pd.Series({
+                "MES": nome_mes, "META": 0.0, "RECEBIDO": 0.0, "PERDA": 0.0, "%": 0.0,
+                "_badge": motivo, "_obs": texto_obs(obs), "perdeu_itens": perdeu_itens
+            })
 
         metainfo = PESOS.get(up("ANALISTA"), {})
         itens = metainfo.get("metas", {})
         total_func = float(valor_meta if pd.notna(valor_meta) else 0.0)
 
         recebido, perdas = 0.0, 0.0
+
         for item, peso in itens.items():
             parcela = total_func * float(peso)
             item_norm = up(item)
 
+            # ---------- PRODUÇÃO ----------
             if item_norm in [up("PRODUÇÃO"), up("PRODUCAO")]:
                 bateu = bool_safe(row.get("BATEU_PRODUCAO"), True)
-                (recebido if bateu else perdas).__iadd__(parcela)
-                if not bateu: perdeu_itens.append("Produção")
+                if bateu:
+                    recebido += parcela
+                else:
+                    perdas += parcela
+                    perdeu_itens.append("Produção")
                 continue
 
+            # ---------- TEMPO MÉDIO GERAL ----------
             if item_norm in [up("TEMPO MÉDIO GERAL DE ANÁLISE"), up("TEMPO MEDIO GERAL DE ANALISE")]:
                 bateu = bool_safe(row.get("BATEU_TMG_GERAL"), True)
-                (recebido if bateu else perdas).__iadd__(parcela)
-                if not bateu: perdeu_itens.append("Tempo Médio Geral de Análise")
+                if bateu:
+                    recebido += parcela
+                else:
+                    perdas += parcela
+                    perdeu_itens.append("Tempo Médio Geral de Análise")
                 continue
 
+            # ---------- TEMPO MÉDIO DO ANALISTA ----------
             if item_norm in [up("TEMPO MÉDIO DE ANÁLISE DO ANALISTA"), up("TEMPO MEDIO DE ANALISE DO ANALISTA")]:
                 bateu = bool_safe(row.get("BATEU_TMA_ANALISTA"), True)
-                (recebido if bateu else perdas).__iadd__(parcela)
-                if not bateu: perdeu_itens.append("Tempo Médio de Análise do Analista")
+                if bateu:
+                    recebido += parcela
+                else:
+                    perdas += parcela
+                    perdeu_itens.append("Tempo Médio de Análise do Analista")
                 continue
 
+            # ---------- TEMPO MÉDIO DA FILA ----------
             if item_norm in [up("TEMPO MÉDIO DA FILA"), up("TEMPO MEDIO DA FILA")]:
                 bateu = bool_safe(row.get("BATEU_TEMPO_FILA"), True)
-                (recebido if bateu else perdas).__iadd__(parcela)
-                if not bateu: perdeu_itens.append("Tempo Médio da Fila")
+                if bateu:
+                    recebido += parcela
+                else:
+                    perdas += parcela
+                    perdeu_itens.append("Tempo Médio da Fila")
                 continue
 
+            # ---------- CONFORMIDADE ----------
             if item_norm == up("CONFORMIDADE"):
                 bateu = bool_safe(row.get("BATEU_CONFORMIDADE"), True)
-                (recebido if bateu else perdas).__iadd__(parcela)
-                if not bateu: perdeu_itens.append("Conformidade")
+                if bateu:
+                    recebido += parcela
+                else:
+                    perdas += parcela
+                    perdeu_itens.append("Conformidade")
                 continue
 
+            # Qualquer item não mapeado: considera batido
             recebido += parcela
 
         meta = total_func
         perc = 0.0 if meta == 0 else (recebido / meta) * 100.0
-        return pd.Series({"MES": nome_mes, "META": meta, "RECEBIDO": recebido, "PERDA": perdas, "%": perc, "_badge": "", "_obs": texto_obs(obs), "perdeu_itens": perdeu_itens})
+
+        return pd.Series({
+            "MES": nome_mes, "META": meta, "RECEBIDO": recebido, "PERDA": perdas,
+            "%": perc, "_badge": "", "_obs": texto_obs(obs), "perdeu_itens": perdeu_itens
+        })
 
     calc = df.apply(calcula_recebido, axis=1)
     out = pd.concat([df.reset_index(drop=True), calc], axis=1)
@@ -391,40 +423,55 @@ def calcula_mes(df_mes: pd.DataFrame, nome_mes: str) -> pd.DataFrame:
 def montar_base(periodo: str) -> pd.DataFrame:
     if periodo == "TRIMESTRE":
         df_j, df_f, df_m = [ler_planilha(m) for m in ["JANEIRO", "FEVEREIRO", "MARÇO"]]
-        full = pd.concat([calcula_mes(df_j, "JANEIRO"), calcula_mes(df_f, "FEVEREIRO"), calcula_mes(df_m, "MARÇO")], ignore_index=True)
+        full = pd.concat(
+            [calcula_mes(df_j, "JANEIRO"), calcula_mes(df_f, "FEVEREIRO"), calcula_mes(df_m, "MARÇO")],
+            ignore_index=True
+        )
 
         group_cols = [c for c in ["CIDADE", "NOME", "FUNÇÃO", "DATA DE ADMISSÃO", "TEMPO DE CASA"] if c in full.columns]
-        if not group_cols: group_cols = ["NOME", "FUNÇÃO"]
+        if not group_cols:
+            group_cols = ["NOME", "FUNÇÃO"]
 
         agg = (full.groupby(group_cols, dropna=False)
-               .agg({"META":"sum","RECEBIDO":"sum","PERDA":"sum",
-                     "_obs": lambda x: ", ".join(sorted({s for s in x if s})),
-                     "_badge": lambda x: " / ".join(sorted({s for s in x if s}))})
+               .agg({
+                   "META":"sum",
+                   "RECEBIDO":"sum",
+                   "PERDA":"sum",
+                   "_obs": lambda x: ", ".join(sorted({s for s in x if s})),
+                   "_badge": lambda x: " / ".join(sorted({s for s in x if s}))
+               })
                .reset_index())
+
         agg["%"] = agg.apply(lambda r: 0.0 if r["META"]==0 else (r["RECEBIDO"]/r["META"])*100.0, axis=1)
 
-        perdas_pessoa = (full.assign(_lost=lambda d: d.apply(lambda r: [f"{it} ({r['MES']})" for it in r["perdeu_itens"]], axis=1))
-                         .groupby(group_cols, dropna=False)["_lost"]
-                         .sum()
-                         .apply(lambda L: ", ".join(sorted(set(L))))
-                         .reset_index()
-                         .rename(columns={"_lost":"INDICADORES_NAO_ENTREGUES"}))
+        perdas_pessoa = (
+            full.assign(_lost=lambda d: d.apply(
+                lambda r: [f"{it} ({r['MES']})" for it in r["perdeu_itens"]],
+                axis=1
+            ))
+            .groupby(group_cols, dropna=False)["_lost"]
+            .sum()
+            .apply(lambda L: ", ".join(sorted(set(L))))
+            .reset_index()
+            .rename(columns={"_lost":"INDICADORES_NAO_ENTREGUES"})
+        )
+
         out = agg.merge(perdas_pessoa, on=group_cols, how="left")
         out["INDICADORES_NAO_ENTREGUES"] = out["INDICADORES_NAO_ENTREGUES"].fillna("")
         return out
 
     df_mes = ler_planilha(periodo)
     out = calcula_mes(df_mes, periodo)
-    out["INDICADORES_NAO_ENTREGUES"] = out["perdeu_itens"].apply(lambda L: ", ".join(L) if isinstance(L, list) and L else "")
+    out["INDICADORES_NAO_ENTREGUES"] = out["perdeu_itens"].apply(
+        lambda L: ", ".join(L) if isinstance(L, list) and L else ""
+    )
     return out
 
 # ===================== SIDEBAR CUSTOM (TOGGLE) =====================
-# Botão real do Streamlit (para alternar), mas o visual fica na barra custom
 _ = st.button("toggle", on_click=toggle_sidebar, key="__sb_toggle_btn", help="Abrir/fechar menu")
 st.markdown(
     """
 <style>
-/* esconde o botão feio do streamlit (mas ele continua existindo pra capturar clique via key) */
 div[data-testid="stButton"][id="__sb_toggle_btn"] { display:none; }
 </style>
 """,
@@ -434,10 +481,8 @@ div[data-testid="stButton"][id="__sb_toggle_btn"] { display:none; }
 sb_class = "custom-sidebar" + ("" if st.session_state.sb_open else " closed")
 main_class = "main-wrap" + ("" if st.session_state.sb_open else " closed")
 
-# sidebar HTML (visual) + placeholders onde entraremos com widgets
 st.markdown(f'<div class="{sb_class}">', unsafe_allow_html=True)
 
-# Toggle visual: ao clicar, dispara o botão real via JS (hack simples)
 st.markdown(
     """
 <div class="sb-toggle" onclick="document.querySelector('button[kind=secondary]').click();">«</div>
@@ -464,12 +509,10 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
-# widgets reais (ficam “dentro” da sidebar visual)
 st.markdown('<div class="custom-sb-inputs">', unsafe_allow_html=True)
 filtro_mes = st.radio("Período", MESES, index=0, key="periodo")
 st.markdown('</div>', unsafe_allow_html=True)
 
-# monta base depois do período
 dados_calc = montar_base(filtro_mes)
 dados_calc = dados_calc[dados_calc["FUNÇÃO"].astype(str).apply(up) == up("ANALISTA")].copy()
 
@@ -486,14 +529,20 @@ if aplicar:
     st.session_state["f_nome"] = filtro_nome
 st.markdown('</div>', unsafe_allow_html=True)
 
-st.markdown('<div class="sb-divider"></div><div class="custom-sb-inputs"><p style="margin:0;color:rgba(229,231,235,.7);font-weight:800;">Logado como</p><p style="margin:2px 0 0 0;font-weight:900;">analistas@brave</p></div>', unsafe_allow_html=True)
+st.markdown(
+    '<div class="sb-divider"></div>'
+    '<div class="custom-sb-inputs">'
+    '<p style="margin:0;color:rgba(229,231,235,.7);font-weight:800;">Logado como</p>'
+    '<p style="margin:2px 0 0 0;font-weight:900;">analistas@brave</p>'
+    '</div>',
+    unsafe_allow_html=True
+)
 
 st.markdown("</div>", unsafe_allow_html=True)  # fecha sidebar
 
 # ===================== CONTEÚDO (COM MARGEM) =====================
 st.markdown(f'<div class="{main_class}">', unsafe_allow_html=True)
 
-# aplica filtros
 dados_view = dados_calc.copy()
 if filtro_nome:
     dados_view = dados_view[dados_view["NOME"].astype(str).str.contains(filtro_nome, case=False, na=False)]
