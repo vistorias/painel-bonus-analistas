@@ -225,22 +225,22 @@ def tela_login():
     st.markdown(
         """
 <style>
-/* tela cheia e centralizada (não depende do padding do Streamlit) */
+/* limpa o padding e centraliza verticalmente */
 div.block-container{
   padding-top: 0rem !important;
   padding-bottom: 0rem !important;
   max-width: 100% !important;
 }
 
-.login-fixed{
-  position: fixed;
-  inset: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 9999;
+/* área central */
+.login-area{
+  min-height: calc(100vh - 60px);
+  display:flex;
+  align-items:center;
+  justify-content:center;
 }
 
+/* card */
 .login-box{
   width: 520px;
   max-width: calc(100vw - 48px);
@@ -251,6 +251,7 @@ div.block-container{
   padding: 26px 26px 18px 26px;
 }
 
+/* topo */
 .login-top{
   display:flex;
   flex-direction:column;
@@ -268,6 +269,7 @@ div.block-container{
 .login-title{ font-size: 1.35rem; font-weight: 950; margin: 0; text-align:center; }
 .login-sub{ color: rgba(15,23,42,.60); margin: 0; font-size: .95rem; text-align:center; }
 
+/* links */
 .login-links{
   text-align:center;
   margin-top: 10px;
@@ -280,45 +282,48 @@ div.block-container{
         unsafe_allow_html=True,
     )
 
-    st.markdown('<div class="login-fixed"><div class="login-box">', unsafe_allow_html=True)
+    # centraliza com colunas (sem overlay por cima do form)
+    c1, c2, c3 = st.columns([1, 1.2, 1])
+    with c2:
+        st.markdown('<div class="login-area"><div class="login-box">', unsafe_allow_html=True)
 
-    st.markdown(
-        """
+        st.markdown(
+            """
 <div class="login-top">
   <div class="login-logo">📄</div>
   <h2 class="login-title">Bem-vindo de volta!</h2>
   <p class="login-sub">Entre com suas credenciais para acessar o sistema</p>
 </div>
 """,
-        unsafe_allow_html=True,
-    )
+            unsafe_allow_html=True,
+        )
 
-    with st.form("login_form", clear_on_submit=False):
-        email = st.text_input("E-mail", value=st.session_state.get("login_email", ""))
-        senha = st.text_input("Senha", type="password")
-        entrar = st.form_submit_button("Entrar", use_container_width=True)
+        with st.form("login_form", clear_on_submit=False):
+            email = st.text_input("E-mail", value=st.session_state.get("login_email", ""))
+            senha = st.text_input("Senha", type="password")
+            entrar = st.form_submit_button("Entrar", use_container_width=True)
 
-    if entrar:
-        if autenticar(email, senha):
-            st.session_state["autenticado"] = True
-            st.session_state["login_email"] = (email or "").strip().lower()
-            st.rerun()
-        else:
-            st.session_state["autenticado"] = False
-            st.error("Credenciais inválidas.")
+        if entrar:
+            if autenticar(email, senha):
+                st.session_state["autenticado"] = True
+                st.session_state["login_email"] = (email or "").strip().lower()
+                st.rerun()
+            else:
+                st.session_state["autenticado"] = False
+                st.error("Credenciais inválidas.")
 
-    st.markdown(
-        """
+        st.markdown(
+            """
 <div class="login-links">
   <div><span>Esqueci minha senha</span></div>
   <div style="margin-top:6px;"><span>Não tem conta? Cadastre-se</span></div>
 </div>
 """,
-        unsafe_allow_html=True,
-    )
+            unsafe_allow_html=True,
+        )
 
-    st.markdown("</div></div>", unsafe_allow_html=True)
-
+        st.markdown("</div></div>", unsafe_allow_html=True)
+        
 # GATE: se não estiver logado, mostra login e trava o resto do app
 if not st.session_state.get("autenticado", False):
     tela_login()
@@ -750,4 +755,5 @@ with right:
             )
 
     st.markdown("</div>", unsafe_allow_html=True)
+
 
