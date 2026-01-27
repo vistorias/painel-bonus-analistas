@@ -14,8 +14,6 @@ from pathlib import Path
 import unicodedata
 import re
 import hmac
-import hashlib
-
 
 # ===================== CONFIG =====================
 st.set_page_config(
@@ -194,38 +192,55 @@ section[data-testid="stSidebar"] label{
 """,
     unsafe_allow_html=True,
 )
-# ===================== LOGIN (TELA INICIAL) =====================
-# Usuários e senhas (simples). Depois eu te mostro como passar isso pro secrets.toml.
-USUARIOS = {
-    # email: senha
-    "wendell_bnascimento@outlook.com": "123456",
-    "analistas@brave": "brave123",
-}
+# ===================== LOGIN =====================
+# Recomendado: usar secrets no Streamlit Cloud
+# Settings -> Secrets:
+# [auth]
+# users = { "analistas@brave" = "brave123", "wendell_bnascimento@outlook.com" = "123456" }
 
 def _safe_eq(a: str, b: str) -> bool:
-    # comparação segura (evita timing attacks simples)
     return hmac.compare_digest(a.encode("utf-8"), b.encode("utf-8"))
+
+def get_usuarios():
+    # 1) tenta pegar do secrets
+    try:
+        return dict(st.secrets["auth"]["users"])
+    except Exception:
+        # 2) fallback local (se não tiver secrets)
+        return {
+            "analistas@brave": "brave123",
+            "wendell_bnascimento@outlook.com": "123456",
+        }
+
+USUARIOS = get_usuarios()
 
 def autenticar(email: str, senha: str) -> bool:
     email = (email or "").strip().lower()
     senha = (senha or "").strip()
     if email not in USUARIOS:
         return False
-    return _safe_eq(USUARIOS[email], senha)
+    return _safe_eq(str(USUARIOS[email]), senha)
 
 def tela_login():
     st.markdown(
         """
 <style>
-/* centraliza tudo */
-.login-center {
-  min-height: calc(100vh - 80px);
+/* tela cheia e centralizada (não depende do padding do Streamlit) */
+div.block-container{
+  padding-top: 0rem !important;
+  padding-bottom: 0rem !important;
+  max-width: 100% !important;
+}
+
+.login-fixed{
+  position: fixed;
+  inset: 0;
   display: flex;
   align-items: center;
   justify-content: center;
+  z-index: 9999;
 }
 
-/* card */
 .login-box{
   width: 520px;
   max-width: calc(100vw - 48px);
@@ -236,7 +251,6 @@ def tela_login():
   padding: 26px 26px 18px 26px;
 }
 
-/* topo */
 .login-top{
   display:flex;
   flex-direction:column;
@@ -254,7 +268,6 @@ def tela_login():
 .login-title{ font-size: 1.35rem; font-weight: 950; margin: 0; text-align:center; }
 .login-sub{ color: rgba(15,23,42,.60); margin: 0; font-size: .95rem; text-align:center; }
 
-/* links */
 .login-links{
   text-align:center;
   margin-top: 10px;
@@ -267,49 +280,46 @@ def tela_login():
         unsafe_allow_html=True,
     )
 
-    c1, c2, c3 = st.columns([1, 1.2, 1])
-    with c2:
-        st.markdown('<div class="login-center"><div class="login-box">', unsafe_allow_html=True)
+    st.markdown('<div class="login-fixed"><div class="login-box">', unsafe_allow_html=True)
 
-        st.markdown(
-            """
+    st.markdown(
+        """
 <div class="login-top">
   <div class="login-logo">📄</div>
   <h2 class="login-title">Bem-vindo de volta!</h2>
   <p class="login-sub">Entre com suas credenciais para acessar o sistema</p>
 </div>
 """,
-            unsafe_allow_html=True,
-        )
+        unsafe_allow_html=True,
+    )
 
-        with st.form("login_form", clear_on_submit=False):
-            email = st.text_input("E-mail", value=st.session_state.get("login_email", ""))
-            senha = st.text_input("Senha", type="password")
-            entrar = st.form_submit_button("Entrar", use_container_width=True)
+    with st.form("login_form", clear_on_submit=False):
+        email = st.text_input("E-mail", value=st.session_state.get("login_email", ""))
+        senha = st.text_input("Senha", type="password")
+        entrar = st.form_submit_button("Entrar", use_container_width=True)
 
-        if entrar:
-            ok = autenticar(email, senha)
-            if ok:
-                st.session_state["autenticado"] = True
-                st.session_state["login_email"] = (email or "").strip().lower()
-                st.rerun()
-            else:
-                st.session_state["autenticado"] = False
-                st.error("Credenciais inválidas.")
+    if entrar:
+        if autenticar(email, senha):
+            st.session_state["autenticado"] = True
+            st.session_state["login_email"] = (email or "").strip().lower()
+            st.rerun()
+        else:
+            st.session_state["autenticado"] = False
+            st.error("Credenciais inválidas.")
 
-        st.markdown(
-            """
+    st.markdown(
+        """
 <div class="login-links">
   <div><span>Esqueci minha senha</span></div>
   <div style="margin-top:6px;"><span>Não tem conta? Cadastre-se</span></div>
 </div>
 """,
-            unsafe_allow_html=True,
-        )
+        unsafe_allow_html=True,
+    )
 
-        st.markdown("</div></div>", unsafe_allow_html=True)
+    st.markdown("</div></div>", unsafe_allow_html=True)
 
-# Gate de acesso: se não estiver autenticado, mostra login e para o app
+# GATE: se não estiver logado, mostra login e trava o resto do app
 if not st.session_state.get("autenticado", False):
     tela_login()
     st.stop()
@@ -740,5 +750,4 @@ with right:
             )
 
     st.markdown("</div>", unsafe_allow_html=True)
-
 
