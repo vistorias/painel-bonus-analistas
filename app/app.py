@@ -13,42 +13,140 @@ import json
 from pathlib import Path
 import unicodedata
 import re
-import hmac
 import streamlit as st
+import hmac
+import hashlib
 
-def _check_password() -> bool:
-    """Login simples via st.secrets['auth']."""
-    def _login_form():
-        with st.form("login"):
-            st.subheader("Bem-vindo de volta!")
-            user = st.text_input("E-mail")
-            pwd = st.text_input("Senha", type="password")
-            ok = st.form_submit_button("Entrar")
-        if ok:
-            auth = st.secrets.get("auth", {})
-            users = auth.get("users", {})
-            # senha salva como hash (recomendado)
-            stored = users.get(user, "")
-            if stored and hmac.compare_digest(stored, _hash(pwd)):
-                st.session_state["auth_ok"] = True
-            else:
-                st.session_state["auth_ok"] = False
+# ===================== LOGIN UI (BONITO) =====================
+def _sha256(s: str) -> str:
+    return hashlib.sha256(s.encode("utf-8")).hexdigest()
 
-    def _hash(s: str) -> str:
-        import hashlib
-        return hashlib.sha256(s.encode("utf-8")).hexdigest()
+def _verify_user(email: str, password: str) -> bool:
+    auth = st.secrets.get("auth", {})
+    users = auth.get("users", {})
+    stored_hash = users.get(email, "")
+    if not stored_hash:
+        return False
+    return hmac.compare_digest(stored_hash, _sha256(password))
 
-    if st.session_state.get("auth_ok", False):
-        return True
+def _login_css():
+    st.markdown(
+        """
+<style>
+/* centraliza e dá cara de tela de login */
+.login-wrap{
+  min-height: calc(100vh - 6rem);
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  padding: 1.5rem 1rem;
+}
+.login-card{
+  width: 100%;
+  max-width: 520px;
+  background: #fff;
+  border: 1px solid rgba(15,23,42,.10);
+  border-radius: 18px;
+  box-shadow: 0 18px 40px rgba(15,23,42,.10);
+  padding: 22px 22px 18px 22px;
+}
+.login-top{
+  display:flex;
+  gap:14px;
+  align-items:center;
+  margin-bottom: 8px;
+}
+.login-badge{
+  width:52px;height:52px;
+  border-radius: 16px;
+  display:flex;align-items:center;justify-content:center;
+  background: rgba(59,130,246,.14);
+  border: 1px solid rgba(59,130,246,.22);
+  font-size: 22px;
+}
+.login-title{
+  font-size: 1.35rem;
+  font-weight: 950;
+  margin:0;
+}
+.login-sub{
+  margin:2px 0 0 0;
+  color: rgba(15,23,42,.60);
+  font-weight: 700;
+  font-size: .92rem;
+}
+.login-divider{
+  height:1px;
+  background: rgba(15,23,42,.08);
+  margin: 14px 0 16px 0;
+}
 
-    _login_form()
-    if st.session_state.get("auth_ok", False):
-        return True
+/* deixa botão do form com cara de CTA */
+div[data-testid="stForm"] button[kind="primary"],
+div[data-testid="stForm"] button{
+  width: 100% !important;
+  border-radius: 12px !important;
+  padding: 0.75rem 1rem !important;
+  font-weight: 900 !important;
+}
 
+/* inputs mais “sistema” */
+div[data-testid="stForm"] input{
+  border-radius: 12px !important;
+}
+</style>
+""",
+        unsafe_allow_html=True,
+    )
+
+def _render_login():
+    _login_css()
+
+    st.markdown('<div class="login-wrap"><div class="login-card">', unsafe_allow_html=True)
+
+    st.markdown(
+        """
+<div class="login-top">
+  <div class="login-badge">🔒</div>
+  <div>
+    <p class="login-title">Bem-vindo de volta!</p>
+    <p class="login-sub">Entre com suas credenciais para acessar o painel</p>
+  </div>
+</div>
+<div class="login-divider"></div>
+""",
+        unsafe_allow_html=True,
+    )
+
+    # mensagem de erro (se houver)
+    if st.session_state.get("login_error"):
+        st.error("Usuário ou senha inválido.")
+
+    with st.form("login_form", clear_on_submit=False):
+        email = st.text_input("E-mail", placeholder="ex: adm@brave.com")
+        pwd = st.text_input("Senha", type="password", placeholder="••••••••")
+        ok = st.form_submit_button("Entrar")
+
+    if ok:
+        if _verify_user(email.strip(), pwd):
+            st.session_state["auth_ok"] = True
+            st.session_state["login_error"] = False
+            st.rerun()
+        else:
+            st.session_state["auth_ok"] = False
+            st.session_state["login_error"] = True
+            st.rerun()
+
+    st.markdown("</div></div>", unsafe_allow_html=True)
+
+def _require_login():
+    if st.session_state.get("auth_ok"):
+        return
+    _render_login()
     st.stop()
 
-# CHAMA ANTES DE QUALQUER CONTEÚDO DO APP
-_check_password()
+# CHAME ISSO ANTES DO RESTO DO APP
+_require_login()
 
 # ===================== CONFIG =====================
 st.set_page_config(
@@ -652,5 +750,6 @@ with right:
             )
 
     st.markdown("</div>", unsafe_allow_html=True)
+
 
 
