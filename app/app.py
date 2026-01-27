@@ -6,8 +6,8 @@ from pathlib import Path
 import unicodedata, re
 
 # ===================== CONFIG BÁSICA =====================
-st.set_page_config(page_title="Painel de Bônus (T4) | Analistas", layout="wide")
-st.title("🧠 Painel de Bônus Trimestral (T4) | Analistas")
+st.set_page_config(page_title="Painel de Bônus | Analistas", layout="wide")
+st.title("🧠 Painel de Bônus Trimestral | Analistas")
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 DATA_DIR = BASE_DIR / "data"
@@ -327,3 +327,4 @@ for idx, row in dados_view.iterrows():
         if perdidos_txt and "100%" not in perdidos_txt:
 
             st.caption(f"🔻 Indicadores não entregues: {perdidos_txt}")
+
