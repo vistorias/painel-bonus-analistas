@@ -1,0 +1,11 @@
+{
+  "ANALISTA": {
+    "metas": {
+      "Produção": 0.25,
+      "Tempo Médio Geral de Análise": 0.10,
+      "Tempo Médio de Análise do Analista": 0.10,
+      "Tempo Médio da Fila": 0.25,
+      "Conformidade": 0.30
+    }
+  }
+}

@@ -1,0 +1,23 @@
+{
+  "JANEIRO": {
+    "producao": true,
+    "tempo_medio_geral": true,
+    "tempo_medio_analista": true,
+    "tempo_medio_fila": true,
+    "conformidade": true
+  },
+  "FEVEREIRO": {
+    "producao": true,
+    "tempo_medio_geral": true,
+    "tempo_medio_analista": true,
+    "tempo_medio_fila": true,
+    "conformidade": true
+  },
+  "MARÇO": {
+    "producao": true,
+    "tempo_medio_geral": true,
+    "tempo_medio_analista": true,
+    "tempo_medio_fila": true,
+    "conformidade": true
+  }
+}
