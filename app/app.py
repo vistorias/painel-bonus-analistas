@@ -1,8 +1,7 @@
 # -*- coding: utf-8 -*-
 # ============================================================
 # Painel de Bônus Trimestral (T1) | ANALISTAS
-# Avaliação individual por linha no Excel (colunas BATEU_*)
-# Meses: JANEIRO, FEVEREIRO, MARÇO
+# Sidebar custom (fixa) com toggle próprio (não some)
 # ============================================================
 
 import streamlit as st
@@ -17,54 +16,108 @@ st.set_page_config(page_title="Painel de Bônus (T1) | Analistas", layout="wide"
 BASE_DIR = Path(__file__).resolve().parent.parent
 DATA_DIR = BASE_DIR / "data"
 
-# ===================== ESTILO (UI + SIDEBAR FIXA) =====================
+# ===================== ESTADO (SIDEBAR ABERTA/FECHADA) =====================
+if "sb_open" not in st.session_state:
+    st.session_state.sb_open = True
+
+def toggle_sidebar():
+    st.session_state.sb_open = not st.session_state.sb_open
+
+# ===================== ESTILO (UI + SIDEBAR CUSTOM) =====================
 st.markdown(
     """
 <style>
-/* App base */
-.block-container { padding-top: 1.1rem; padding-bottom: 2rem; max-width: 1320px; }
-h1, h2, h3 { letter-spacing: -0.02em; }
-
-/* Remove menu/footer */
+/* Remove menu/footer e sidebar nativa */
 #MainMenu {visibility: hidden;}
 footer {visibility: hidden;}
 header {visibility: hidden;}
+section[data-testid="stSidebar"] { display: none !important; } /* some a sidebar nativa */
+button[kind="header"] { display:none !important; } /* tenta reduzir o botão nativo */
 
-/* Sidebar (fixa, estilo "app") */
-section[data-testid="stSidebar"] { background: #0b1220; }
-section[data-testid="stSidebar"] * { color: #e5e7eb !important; }
-section[data-testid="stSidebar"] a { color: #e5e7eb !important; }
-section[data-testid="stSidebar"] .stRadio > label,
-section[data-testid="stSidebar"] .stSelectbox > label,
-section[data-testid="stSidebar"] .stTextInput > label { font-weight: 900; opacity: .95; }
+/* App base */
+.block-container { padding-top: 1.1rem; padding-bottom: 2rem; max-width: 1400px; }
+h1,h2,h3 { letter-spacing:-0.02em; }
 
-/* "Brand" do topo da sidebar */
-.sb-brand { display:flex; gap:10px; align-items:center; padding: 4px 2px 10px 2px; }
-.sb-logo {
+/* Layout: sidebar custom fixa */
+:root{
+  --sb-w-open: 320px;
+  --sb-w-closed: 74px;
+  --sb-bg: #0b1220;
+  --sb-fg: #e5e7eb;
+  --sb-muted: rgba(229,231,235,.70);
+}
+
+.custom-sidebar{
+  position: fixed;
+  top: 0; left: 0;
+  height: 100vh;
+  width: var(--sb-w-open);
+  background: var(--sb-bg);
+  color: var(--sb-fg);
+  z-index: 9999;
+  border-right: 1px solid rgba(255,255,255,.08);
+  padding: 16px 14px;
+  overflow: hidden;
+  transition: width .18s ease;
+}
+.custom-sidebar.closed{
+  width: var(--sb-w-closed);
+}
+.main-wrap{
+  margin-left: var(--sb-w-open);
+  transition: margin-left .18s ease;
+}
+.main-wrap.closed{
+  margin-left: var(--sb-w-closed);
+}
+
+/* Toggle button */
+.sb-toggle{
+  position: absolute;
+  top: 12px; right: 12px;
+  width: 38px; height: 38px;
+  border-radius: 12px;
+  display:flex; align-items:center; justify-content:center;
+  background: rgba(255,255,255,.08);
+  border: 1px solid rgba(255,255,255,.10);
+  cursor: pointer;
+  user-select: none;
+  font-weight: 900;
+}
+.sb-toggle:hover{ background: rgba(255,255,255,.12); }
+
+/* Brand */
+.sb-brand{ display:flex; gap:10px; align-items:center; margin-top: 28px; }
+.sb-logo{
   width: 42px; height: 42px; border-radius: 12px;
   background: rgba(255,255,255,.08);
   display:flex; align-items:center; justify-content:center;
   font-weight: 900; font-size: 16px;
   border: 1px solid rgba(255,255,255,.10);
 }
-.sb-title { font-weight: 950; font-size: 1.05rem; line-height: 1.1; }
-.sb-sub { color: rgba(229,231,235,.70); font-size: .82rem; margin-top: 2px; }
+.sb-title{ font-weight: 950; font-size: 1.02rem; line-height: 1.1; }
+.sb-sub{ color: var(--sb-muted); font-size: .80rem; margin-top: 2px; }
 
-/* Menu fake da sidebar (visual) */
-.sb-menu { margin-top: 10px; }
-.sb-menu-title { font-size: .70rem; letter-spacing:.10em; opacity:.75; font-weight: 900; margin: 10px 0 8px 0; }
-.sb-pill {
+/* Menu */
+.sb-menu-title{ font-size: .70rem; letter-spacing:.10em; opacity:.75; font-weight: 900; margin: 16px 0 10px 0; }
+.sb-pill{
   border: 1px solid rgba(255,255,255,.10);
   background: rgba(255,255,255,.06);
   padding: 10px 12px;
   border-radius: 12px;
   font-weight: 850;
+  margin-bottom: 8px;
 }
-.sb-pill.active {
+.sb-pill.active{
   background: rgba(59,130,246,.22);
   border-color: rgba(59,130,246,.45);
 }
-.sb-divider { height: 1px; background: rgba(255,255,255,.10); margin: 12px 0; }
+.sb-divider{ height:1px; background: rgba(255,255,255,.10); margin: 14px 0; }
+
+/* Inputs dentro da sidebar custom (Streamlit) */
+.custom-sb-inputs label, .custom-sb-inputs span, .custom-sb-inputs p, .custom-sb-inputs div {
+  color: var(--sb-fg) !important;
+}
 
 /* Header */
 .page-title { font-size: 1.7rem; font-weight: 950; line-height: 1.1; }
@@ -72,46 +125,46 @@ section[data-testid="stSidebar"] .stTextInput > label { font-weight: 900; opacit
 
 /* KPI cards */
 .kpi-row { display:flex; gap:14px; flex-wrap:wrap; margin: 10px 0 14px 0; }
-.kpi {
+.kpi{
   flex: 1 1 235px;
   border: 1px solid rgba(15,23,42,.10);
-  background: #ffffff;
+  background: #fff;
   border-radius: 14px;
-  padding: 14px 14px;
+  padding: 14px;
   box-shadow: 0 8px 24px rgba(15,23,42,.06);
 }
-.kpi-top { display:flex; align-items:center; justify-content:space-between; gap:10px; }
-.kpi-title { font-size: 0.90rem; font-weight: 950; color: rgba(15,23,42,.72); }
-.kpi-icon {
-  width: 38px; height: 38px; border-radius: 12px;
+.kpi-top{ display:flex; align-items:center; justify-content:space-between; gap:10px; }
+.kpi-title{ font-size:.90rem; font-weight: 950; color: rgba(15,23,42,.72); }
+.kpi-icon{
+  width:38px; height:38px; border-radius:12px;
   display:flex; align-items:center; justify-content:center;
-  font-size: 18px; font-weight: 950;
+  font-size:18px; font-weight:950;
   border: 1px solid rgba(15,23,42,.08);
 }
-.kpi-icon.blue   { background: rgba(59,130,246,.14); color: rgba(59,130,246,1); }
-.kpi-icon.green  { background: rgba(34,197,94,.14);  color: rgba(34,197,94,1); }
-.kpi-icon.amber  { background: rgba(245,158,11,.16); color: rgba(245,158,11,1); }
-.kpi-icon.purple { background: rgba(168,85,247,.14); color: rgba(168,85,247,1); }
+.kpi-icon.blue{ background: rgba(59,130,246,.14); color: rgba(59,130,246,1); }
+.kpi-icon.green{ background: rgba(34,197,94,.14); color: rgba(34,197,94,1); }
+.kpi-icon.amber{ background: rgba(245,158,11,.16); color: rgba(245,158,11,1); }
+.kpi-icon.purple{ background: rgba(168,85,247,.14); color: rgba(168,85,247,1); }
+.kpi-value{ font-size:1.55rem; font-weight: 950; margin-top:6px; }
+.kpi-sub{ font-size:.85rem; color: rgba(15,23,42,.55); margin-top:2px; }
 
-.kpi-value { font-size: 1.55rem; font-weight: 950; margin-top: 6px; }
-.kpi-sub { font-size: 0.85rem; color: rgba(15,23,42,.55); margin-top: 2px; }
-
-/* Section cards */
-.section {
+/* Section */
+.section{
   border: 1px solid rgba(15,23,42,.10);
-  background: #ffffff;
+  background: #fff;
   border-radius: 16px;
-  padding: 14px 14px;
+  padding: 14px;
   box-shadow: 0 8px 24px rgba(15,23,42,.06);
 }
-.section-title { font-weight: 950; font-size: 1.05rem; margin-bottom: 10px; display:flex; gap:8px; align-items:center; }
+.section-title{ font-weight:950; font-size:1.05rem; margin-bottom:10px; display:flex; gap:8px; align-items:center;
+}
 
-/* Person cards */
+/* Cards */
 .person-card{
   border:1px solid rgba(15,23,42,.10);
-  background:#ffffff;
+  background:#fff;
   border-radius:16px;
-  padding:14px 14px;
+  padding:14px;
   box-shadow: 0 10px 28px rgba(15,23,42,.06);
   margin-bottom: 12px;
 }
@@ -124,7 +177,7 @@ section[data-testid="stSidebar"] .stTextInput > label { font-weight: 900; opacit
   background: rgba(15,23,42,.05);
   border:1px solid rgba(15,23,42,.08);
   padding:8px 10px;
-  border-radius: 999px;
+  border-radius:999px;
   font-size:.82rem;
   font-weight:900;
   color: rgba(15,23,42,.78);
@@ -133,10 +186,10 @@ section[data-testid="stSidebar"] .stTextInput > label { font-weight: 900; opacit
   overflow:hidden;
   text-overflow:ellipsis;
 }
-.bar { height: 10px; background: rgba(15,23,42,.10); border-radius: 999px; overflow:hidden; }
-.bar > div { height:100%; background: #0f172a; }
-.muted { color: rgba(15,23,42,.55); font-size:.86rem; }
-.warn { color: #b45309; font-weight: 950; }
+.bar{ height:10px; background: rgba(15,23,42,.10); border-radius:999px; overflow:hidden; }
+.bar>div{ height:100%; background:#0f172a; }
+.muted{ color: rgba(15,23,42,.55); font-size:.86rem; }
+.warn{ color:#b45309; font-weight:950; }
 </style>
 """,
     unsafe_allow_html=True,
@@ -246,10 +299,8 @@ except Exception as e:
     st.error(f"Erro ao carregar pesos: {e}\nArquivo esperado: {PESOS_PATH.name}")
     st.stop()
 
-# ===================== MESES (T1) =====================
 MESES = ["TRIMESTRE", "JANEIRO", "FEVEREIRO", "MARÇO"]
 
-# ===================== LEITURA DA PLANILHA =====================
 def ler_planilha(mes: str) -> pd.DataFrame:
     if PLANILHA_PATH.exists():
         return pd.read_excel(PLANILHA_PATH, sheet_name=mes)
@@ -267,13 +318,9 @@ COLS_OBRIG = [
 def checar_colunas(df: pd.DataFrame, mes: str):
     faltando = [c for c in COLS_OBRIG if c not in df.columns]
     if faltando:
-        st.error(
-            f"Na aba {mes}, faltam colunas obrigatórias: {', '.join(faltando)}.\n"
-            f"Colunas encontradas: {', '.join(df.columns)}"
-        )
+        st.error(f"Na aba {mes}, faltam colunas obrigatórias: {', '.join(faltando)}")
         st.stop()
 
-# ===================== CÁLCULO (POR MÊS) =====================
 def calcula_mes(df_mes: pd.DataFrame, nome_mes: str) -> pd.DataFrame:
     df = df_mes.copy()
     checar_colunas(df, nome_mes)
@@ -284,128 +331,84 @@ def calcula_mes(df_mes: pd.DataFrame, nome_mes: str) -> pd.DataFrame:
         valor_meta = row.get("VALOR MENSAL META", 0)
 
         if func != up("ANALISTA"):
-            return pd.Series({
-                "MES": nome_mes, "META": 0.0, "RECEBIDO": 0.0, "PERDA": 0.0, "%": 0.0,
-                "_badge": "Função fora do painel", "_obs": texto_obs(obs), "perdeu_itens": []
-            })
+            return pd.Series({"MES": nome_mes, "META": 0.0, "RECEBIDO": 0.0, "PERDA": 0.0, "%": 0.0, "_badge": "", "_obs": texto_obs(obs), "perdeu_itens": []})
 
         ok, motivo = elegivel(valor_meta, obs)
         perdeu_itens = []
-
         if not ok:
-            return pd.Series({
-                "MES": nome_mes, "META": 0.0, "RECEBIDO": 0.0, "PERDA": 0.0, "%": 0.0,
-                "_badge": motivo, "_obs": texto_obs(obs), "perdeu_itens": perdeu_itens
-            })
+            return pd.Series({"MES": nome_mes, "META": 0.0, "RECEBIDO": 0.0, "PERDA": 0.0, "%": 0.0, "_badge": motivo, "_obs": texto_obs(obs), "perdeu_itens": perdeu_itens})
 
         metainfo = PESOS.get(up("ANALISTA"), {})
         itens = metainfo.get("metas", {})
-
         total_func = float(valor_meta if pd.notna(valor_meta) else 0.0)
 
         recebido, perdas = 0.0, 0.0
-
         for item, peso in itens.items():
             parcela = total_func * float(peso)
             item_norm = up(item)
 
             if item_norm in [up("PRODUÇÃO"), up("PRODUCAO")]:
                 bateu = bool_safe(row.get("BATEU_PRODUCAO"), True)
-                if bateu:
-                    recebido += parcela
-                else:
-                    perdas += parcela
-                    perdeu_itens.append("Produção")
+                (recebido if bateu else perdas).__iadd__(parcela)
+                if not bateu: perdeu_itens.append("Produção")
                 continue
 
             if item_norm in [up("TEMPO MÉDIO GERAL DE ANÁLISE"), up("TEMPO MEDIO GERAL DE ANALISE")]:
                 bateu = bool_safe(row.get("BATEU_TMG_GERAL"), True)
-                if bateu:
-                    recebido += parcela
-                else:
-                    perdas += parcela
-                    perdeu_itens.append("Tempo Médio Geral de Análise")
+                (recebido if bateu else perdas).__iadd__(parcela)
+                if not bateu: perdeu_itens.append("Tempo Médio Geral de Análise")
                 continue
 
             if item_norm in [up("TEMPO MÉDIO DE ANÁLISE DO ANALISTA"), up("TEMPO MEDIO DE ANALISE DO ANALISTA")]:
                 bateu = bool_safe(row.get("BATEU_TMA_ANALISTA"), True)
-                if bateu:
-                    recebido += parcela
-                else:
-                    perdas += parcela
-                    perdeu_itens.append("Tempo Médio de Análise do Analista")
+                (recebido if bateu else perdas).__iadd__(parcela)
+                if not bateu: perdeu_itens.append("Tempo Médio de Análise do Analista")
                 continue
 
             if item_norm in [up("TEMPO MÉDIO DA FILA"), up("TEMPO MEDIO DA FILA")]:
                 bateu = bool_safe(row.get("BATEU_TEMPO_FILA"), True)
-                if bateu:
-                    recebido += parcela
-                else:
-                    perdas += parcela
-                    perdeu_itens.append("Tempo Médio da Fila")
+                (recebido if bateu else perdas).__iadd__(parcela)
+                if not bateu: perdeu_itens.append("Tempo Médio da Fila")
                 continue
 
             if item_norm == up("CONFORMIDADE"):
                 bateu = bool_safe(row.get("BATEU_CONFORMIDADE"), True)
-                if bateu:
-                    recebido += parcela
-                else:
-                    perdas += parcela
-                    perdeu_itens.append("Conformidade")
+                (recebido if bateu else perdas).__iadd__(parcela)
+                if not bateu: perdeu_itens.append("Conformidade")
                 continue
 
             recebido += parcela
 
         meta = total_func
         perc = 0.0 if meta == 0 else (recebido / meta) * 100.0
-
-        return pd.Series({
-            "MES": nome_mes, "META": meta, "RECEBIDO": recebido, "PERDA": perdas,
-            "%": perc, "_badge": "", "_obs": texto_obs(obs), "perdeu_itens": perdeu_itens
-        })
+        return pd.Series({"MES": nome_mes, "META": meta, "RECEBIDO": recebido, "PERDA": perdas, "%": perc, "_badge": "", "_obs": texto_obs(obs), "perdeu_itens": perdeu_itens})
 
     calc = df.apply(calcula_recebido, axis=1)
     out = pd.concat([df.reset_index(drop=True), calc], axis=1)
     out = out[out["FUNÇÃO"].astype(str).apply(up) == up("ANALISTA")].copy()
     return out
 
-# ===================== CONSOLIDAÇÃO =====================
 def montar_base(periodo: str) -> pd.DataFrame:
     if periodo == "TRIMESTRE":
         df_j, df_f, df_m = [ler_planilha(m) for m in ["JANEIRO", "FEVEREIRO", "MARÇO"]]
-        dados_full = pd.concat(
-            [calcula_mes(df_j, "JANEIRO"), calcula_mes(df_f, "FEVEREIRO"), calcula_mes(df_m, "MARÇO")],
-            ignore_index=True,
-        )
+        full = pd.concat([calcula_mes(df_j, "JANEIRO"), calcula_mes(df_f, "FEVEREIRO"), calcula_mes(df_m, "MARÇO")], ignore_index=True)
 
-        group_cols = [c for c in ["CIDADE", "NOME", "FUNÇÃO", "DATA DE ADMISSÃO", "TEMPO DE CASA"] if c in dados_full.columns]
-        if not group_cols:
-            group_cols = ["NOME", "FUNÇÃO"]
+        group_cols = [c for c in ["CIDADE", "NOME", "FUNÇÃO", "DATA DE ADMISSÃO", "TEMPO DE CASA"] if c in full.columns]
+        if not group_cols: group_cols = ["NOME", "FUNÇÃO"]
 
-        agg = (
-            dados_full.groupby(group_cols, dropna=False)
-            .agg(
-                {
-                    "META": "sum",
-                    "RECEBIDO": "sum",
-                    "PERDA": "sum",
-                    "_obs": lambda x: ", ".join(sorted({s for s in x if s})),
-                    "_badge": lambda x: " / ".join(sorted({s for s in x if s})),
-                }
-            )
-            .reset_index()
-        )
-        agg["%"] = agg.apply(lambda r: 0.0 if r["META"] == 0 else (r["RECEBIDO"] / r["META"]) * 100.0, axis=1)
+        agg = (full.groupby(group_cols, dropna=False)
+               .agg({"META":"sum","RECEBIDO":"sum","PERDA":"sum",
+                     "_obs": lambda x: ", ".join(sorted({s for s in x if s})),
+                     "_badge": lambda x: " / ".join(sorted({s for s in x if s}))})
+               .reset_index())
+        agg["%"] = agg.apply(lambda r: 0.0 if r["META"]==0 else (r["RECEBIDO"]/r["META"])*100.0, axis=1)
 
-        perdas_pessoa = (
-            dados_full.assign(_lost=lambda d: d.apply(lambda r: [f"{it} ({r['MES']})" for it in r["perdeu_itens"]], axis=1))
-            .groupby(group_cols, dropna=False)["_lost"]
-            .sum()
-            .apply(lambda L: ", ".join(sorted(set(L))))
-            .reset_index()
-            .rename(columns={"_lost": "INDICADORES_NAO_ENTREGUES"})
-        )
-
+        perdas_pessoa = (full.assign(_lost=lambda d: d.apply(lambda r: [f"{it} ({r['MES']})" for it in r["perdeu_itens"]], axis=1))
+                         .groupby(group_cols, dropna=False)["_lost"]
+                         .sum()
+                         .apply(lambda L: ", ".join(sorted(set(L))))
+                         .reset_index()
+                         .rename(columns={"_lost":"INDICADORES_NAO_ENTREGUES"}))
         out = agg.merge(perdas_pessoa, on=group_cols, how="left")
         out["INDICADORES_NAO_ENTREGUES"] = out["INDICADORES_NAO_ENTREGUES"].fillna("")
         return out
@@ -415,11 +418,35 @@ def montar_base(periodo: str) -> pd.DataFrame:
     out["INDICADORES_NAO_ENTREGUES"] = out["perdeu_itens"].apply(lambda L: ", ".join(L) if isinstance(L, list) and L else "")
     return out
 
-# ===================== SIDEBAR "APP" (MENU + FILTROS) =====================
-with st.sidebar:
-    # Brand
-    st.markdown(
-        """
+# ===================== SIDEBAR CUSTOM (TOGGLE) =====================
+# Botão real do Streamlit (para alternar), mas o visual fica na barra custom
+_ = st.button("toggle", on_click=toggle_sidebar, key="__sb_toggle_btn", help="Abrir/fechar menu")
+st.markdown(
+    """
+<style>
+/* esconde o botão feio do streamlit (mas ele continua existindo pra capturar clique via key) */
+div[data-testid="stButton"][id="__sb_toggle_btn"] { display:none; }
+</style>
+""",
+    unsafe_allow_html=True,
+)
+
+sb_class = "custom-sidebar" + ("" if st.session_state.sb_open else " closed")
+main_class = "main-wrap" + ("" if st.session_state.sb_open else " closed")
+
+# sidebar HTML (visual) + placeholders onde entraremos com widgets
+st.markdown(f'<div class="{sb_class}">', unsafe_allow_html=True)
+
+# Toggle visual: ao clicar, dispara o botão real via JS (hack simples)
+st.markdown(
+    """
+<div class="sb-toggle" onclick="document.querySelector('button[kind=secondary]').click();">«</div>
+""",
+    unsafe_allow_html=True,
+)
+
+st.markdown(
+    """
 <div class="sb-brand">
   <div class="sb-logo">📊</div>
   <div>
@@ -427,50 +454,46 @@ with st.sidebar:
     <div class="sb-sub">Bônus • T1</div>
   </div>
 </div>
+
+<div class="sb-menu-title">MENU PRINCIPAL</div>
+<div class="sb-pill">🏠 Dashboard</div>
+<div class="sb-pill active">📄 Relatório</div>
+<div class="sb-divider"></div>
+<div class="sb-menu-title">FILTROS</div>
 """,
-        unsafe_allow_html=True,
-    )
+    unsafe_allow_html=True,
+)
 
-    st.markdown('<div class="sb-menu">', unsafe_allow_html=True)
-    st.markdown('<div class="sb-menu-title">MENU PRINCIPAL</div>', unsafe_allow_html=True)
+# widgets reais (ficam “dentro” da sidebar visual)
+st.markdown('<div class="custom-sb-inputs">', unsafe_allow_html=True)
+filtro_mes = st.radio("Período", MESES, index=0, key="periodo")
+st.markdown('</div>', unsafe_allow_html=True)
 
-    # Menu visual (igual exemplo)
-    st.markdown('<div class="sb-pill">🏠 Dashboard</div>', unsafe_allow_html=True)
-    st.markdown('<div class="sb-pill active">📄 Relatório</div>', unsafe_allow_html=True)
-    st.markdown('<div class="sb-divider"></div>', unsafe_allow_html=True)
-
-    st.markdown('<div class="sb-menu-title">FILTROS</div>', unsafe_allow_html=True)
-    filtro_mes = st.radio("Período", MESES, index=0, key="periodo")
-
-# monta base depois do período escolhido
-try:
-    dados_calc = montar_base(filtro_mes)
-except Exception as e:
-    st.error(f"Erro ao montar base: {e}")
-    st.stop()
-
-# garante analista
+# monta base depois do período
+dados_calc = montar_base(filtro_mes)
 dados_calc = dados_calc[dados_calc["FUNÇÃO"].astype(str).apply(up) == up("ANALISTA")].copy()
 
-# filtros dependentes da base
 cidades = ["Todas"] + (sorted([c for c in dados_calc["CIDADE"].dropna().unique()]) if "CIDADE" in dados_calc.columns else [])
 tempos = ["Todos"] + (sorted([t for t in dados_calc["TEMPO DE CASA"].dropna().unique()]) if "TEMPO DE CASA" in dados_calc.columns else [])
 
-with st.sidebar:
-    with st.form("filtros_form", clear_on_submit=False):
-        filtro_nome = st.text_input("Buscar por nome", value=st.session_state.get("f_nome", ""))
-        filtro_cidade = st.selectbox("Cidade", cidades, index=0)
-        filtro_tempo = st.selectbox("Tempo de casa", tempos, index=0)
-        aplicar = st.form_submit_button("Aplicar filtros")
+st.markdown('<div class="custom-sb-inputs">', unsafe_allow_html=True)
+with st.form("filtros_form", clear_on_submit=False):
+    filtro_nome = st.text_input("Buscar por nome", value=st.session_state.get("f_nome", ""))
+    filtro_cidade = st.selectbox("Cidade", cidades, index=0)
+    filtro_tempo = st.selectbox("Tempo de casa", tempos, index=0)
+    aplicar = st.form_submit_button("Aplicar filtros")
+if aplicar:
+    st.session_state["f_nome"] = filtro_nome
+st.markdown('</div>', unsafe_allow_html=True)
 
-    if aplicar:
-        st.session_state["f_nome"] = filtro_nome
+st.markdown('<div class="sb-divider"></div><div class="custom-sb-inputs"><p style="margin:0;color:rgba(229,231,235,.7);font-weight:800;">Logado como</p><p style="margin:2px 0 0 0;font-weight:900;">analistas@brave</p></div>', unsafe_allow_html=True)
 
-    st.markdown('<div class="sb-divider"></div>', unsafe_allow_html=True)
-    st.caption("Logado como: analistas@brave")
-    st.caption("Sair")
+st.markdown("</div>", unsafe_allow_html=True)  # fecha sidebar
 
-# ===================== APLICA FILTROS =====================
+# ===================== CONTEÚDO (COM MARGEM) =====================
+st.markdown(f'<div class="{main_class}">', unsafe_allow_html=True)
+
+# aplica filtros
 dados_view = dados_calc.copy()
 if filtro_nome:
     dados_view = dados_view[dados_view["NOME"].astype(str).str.contains(filtro_nome, case=False, na=False)]
@@ -478,10 +501,8 @@ if filtro_cidade != "Todas" and "CIDADE" in dados_view.columns:
     dados_view = dados_view[dados_view["CIDADE"] == filtro_cidade]
 if filtro_tempo != "Todos" and "TEMPO DE CASA" in dados_view.columns:
     dados_view = dados_view[dados_view["TEMPO DE CASA"] == filtro_tempo]
-
 dados_view = dados_view.sort_values(by="%", ascending=False)
 
-# ===================== HEADER + KPIs =====================
 periodo_label = "Trimestre" if filtro_mes == "TRIMESTRE" else filtro_mes
 
 st.markdown(
@@ -501,7 +522,6 @@ qtd = len(dados_view)
 
 render_kpis(total_possivel, recebido, perda, qtd)
 
-# ===================== GRID PRINCIPAL =====================
 left, right = st.columns([1.05, 1.25], gap="large")
 
 with left:
@@ -509,27 +529,19 @@ with left:
     st.markdown('<div class="section-title">📌 Resumo</div>', unsafe_allow_html=True)
 
     cumprimento_medio = 0.0 if total_possivel == 0 else (recebido / total_possivel) * 100.0
-
     resumo = pd.DataFrame(
-        {
-            "Item": ["Total possível", "Recebido", "Deixou de ganhar", "Cumprimento médio"],
-            "Valor": [brl(total_possivel), brl(recebido), brl(perda), f"{cumprimento_medio:.1f}%"],
-        }
+        {"Item":["Total possível","Recebido","Deixou de ganhar","Cumprimento médio"],
+         "Valor":[brl(total_possivel), brl(recebido), brl(perda), f"{cumprimento_medio:.1f}%"]}
     )
     st.dataframe(resumo, use_container_width=True, hide_index=True)
 
     top = dados_view.head(5).copy()
-    cols_top = [c for c in ["NOME", "CIDADE", "%", "RECEBIDO", "PERDA"] if c in top.columns]
+    cols_top = [c for c in ["NOME","CIDADE","%","RECEBIDO","PERDA"] if c in top.columns]
     top = top[cols_top]
-
-    if "%" in top.columns:
-        top["%"] = top["%"].apply(lambda x: f"{float(x):.1f}%")
-    if "RECEBIDO" in top.columns:
-        top["RECEBIDO"] = top["RECEBIDO"].apply(brl)
-    if "PERDA" in top.columns:
-        top["PERDA"] = top["PERDA"].apply(brl)
-    if "CIDADE" in top.columns:
-        top["CIDADE"] = top["CIDADE"].astype(str).str.title()
+    if "%" in top.columns: top["%"] = top["%"].apply(lambda x: f"{float(x):.1f}%")
+    if "RECEBIDO" in top.columns: top["RECEBIDO"] = top["RECEBIDO"].apply(brl)
+    if "PERDA" in top.columns: top["PERDA"] = top["PERDA"].apply(brl)
+    if "CIDADE" in top.columns: top["CIDADE"] = top["CIDADE"].astype(str).str.title()
 
     st.markdown('<div style="height:10px"></div>', unsafe_allow_html=True)
     st.markdown('<div class="section-title">🏆 Top 5</div>', unsafe_allow_html=True)
@@ -557,34 +569,35 @@ with right:
 
         tag = "Excelente" if pct >= 95 else ("Atenção" if pct < 80 else "Ok")
         meta_line = f"Analista — {cidade}" if cidade else "Analista"
-        if tempo:
-            meta_line = f"{meta_line} • {tempo}"
+        if tempo: meta_line = f"{meta_line} • {tempo}"
 
         with cols_cards[idx % 2]:
             st.markdown(
                 f"""
-            <div class="person-card">
-              <p class="person-name">{nome}</p>
-              <div class="person-meta">{meta_line}</div>
+<div class="person-card">
+  <p class="person-name">{nome}</p>
+  <div class="person-meta">{meta_line}</div>
 
-              <div class="person-grid">
-                <div class="pill"><span>Meta</span><b>{brl(meta)}</b></div>
-                <div class="pill"><span>Recebido</span><b>{brl(rec)}</b></div>
-                <div class="pill"><span>Perda</span><b>{brl(per)}</b></div>
-                <div class="pill"><span>Cumprimento</span><b>{pct:.1f}%</b></div>
-              </div>
+  <div class="person-grid">
+    <div class="pill"><span>Meta</span><b>{brl(meta)}</b></div>
+    <div class="pill"><span>Recebido</span><b>{brl(rec)}</b></div>
+    <div class="pill"><span>Perda</span><b>{brl(per)}</b></div>
+    <div class="pill"><span>Cumprimento</span><b>{pct:.1f}%</b></div>
+  </div>
 
-              <div style="height:10px"></div>
-              <div class="bar"><div style="width:{max(0,min(100,pct)):.1f}%"></div></div>
+  <div style="height:10px"></div>
+  <div class="bar"><div style="width:{max(0,min(100,pct)):.1f}%"></div></div>
 
-              <div style="height:10px"></div>
-              <div class="muted"><b>Status:</b> {tag}</div>
+  <div style="height:10px"></div>
+  <div class="muted"><b>Status:</b> {tag}</div>
 
-              {"<div style='height:8px'></div><div class='muted'><span class='warn'>Indicadores não entregues:</span> "+perdidos_txt+"</div>" if perdidos_txt else ""}
-              {"<div style='height:8px'></div><div class='muted'>Obs.: "+obs+"</div>" if obs else ""}
-            </div>
-            """,
+  {"<div style='height:8px'></div><div class='muted'><span class='warn'>Indicadores não entregues:</span> "+perdidos_txt+"</div>" if perdidos_txt else ""}
+  {"<div style='height:8px'></div><div class='muted'>Obs.: "+obs+"</div>" if obs else ""}
+</div>
+""",
                 unsafe_allow_html=True,
             )
 
     st.markdown('</div>', unsafe_allow_html=True)
+
+st.markdown("</div>", unsafe_allow_html=True)  # fecha main-wrap
