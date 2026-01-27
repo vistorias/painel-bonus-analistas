@@ -13,6 +13,42 @@ import json
 from pathlib import Path
 import unicodedata
 import re
+import hmac
+import streamlit as st
+
+def _check_password() -> bool:
+    """Login simples via st.secrets['auth']."""
+    def _login_form():
+        with st.form("login"):
+            st.subheader("Bem-vindo de volta!")
+            user = st.text_input("E-mail")
+            pwd = st.text_input("Senha", type="password")
+            ok = st.form_submit_button("Entrar")
+        if ok:
+            auth = st.secrets.get("auth", {})
+            users = auth.get("users", {})
+            # senha salva como hash (recomendado)
+            stored = users.get(user, "")
+            if stored and hmac.compare_digest(stored, _hash(pwd)):
+                st.session_state["auth_ok"] = True
+            else:
+                st.session_state["auth_ok"] = False
+
+    def _hash(s: str) -> str:
+        import hashlib
+        return hashlib.sha256(s.encode("utf-8")).hexdigest()
+
+    if st.session_state.get("auth_ok", False):
+        return True
+
+    _login_form()
+    if st.session_state.get("auth_ok", False):
+        return True
+
+    st.stop()
+
+# CHAMA ANTES DE QUALQUER CONTEÚDO DO APP
+_check_password()
 
 # ===================== CONFIG =====================
 st.set_page_config(
@@ -616,4 +652,5 @@ with right:
             )
 
     st.markdown("</div>", unsafe_allow_html=True)
+
 
