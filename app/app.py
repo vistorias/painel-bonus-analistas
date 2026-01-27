@@ -217,14 +217,16 @@ def tela_login():
     st.markdown(
         """
 <style>
-/* fundo centralizado estilo “sistema” */
-.login-wrap{
-  min-height: calc(100vh - 120px);
-  display:flex;
-  align-items:center;
-  justify-content:center;
+/* centraliza tudo */
+.login-center {
+  min-height: calc(100vh - 80px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
-.login-card{
+
+/* card */
+.login-box{
   width: 520px;
   max-width: calc(100vw - 48px);
   background: #ffffff;
@@ -233,9 +235,14 @@ def tela_login():
   box-shadow: 0 14px 40px rgba(15,23,42,.10);
   padding: 26px 26px 18px 26px;
 }
+
+/* topo */
 .login-top{
-  display:flex; flex-direction:column; align-items:center; gap:10px;
-  margin-bottom: 10px;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  gap:10px;
+  margin-bottom: 14px;
 }
 .login-logo{
   width: 58px; height: 58px; border-radius: 16px;
@@ -244,9 +251,10 @@ def tela_login():
   display:flex; align-items:center; justify-content:center;
   font-size: 26px; font-weight: 950;
 }
-.login-title{ font-size: 1.35rem; font-weight: 950; margin: 0; }
+.login-title{ font-size: 1.35rem; font-weight: 950; margin: 0; text-align:center; }
 .login-sub{ color: rgba(15,23,42,.60); margin: 0; font-size: .95rem; text-align:center; }
 
+/* links */
 .login-links{
   text-align:center;
   margin-top: 10px;
@@ -259,45 +267,47 @@ def tela_login():
         unsafe_allow_html=True,
     )
 
-    st.markdown(
-        """
-<div class="login-wrap">
-  <div class="login-card">
-    <div class="login-top">
-      <div class="login-logo">📄</div>
-      <h2 class="login-title">Bem-vindo de volta!</h2>
-      <p class="login-sub">Entre com suas credenciais para acessar o sistema</p>
-    </div>
-""",
-        unsafe_allow_html=True,
-    )
+    c1, c2, c3 = st.columns([1, 1.2, 1])
+    with c2:
+        st.markdown('<div class="login-center"><div class="login-box">', unsafe_allow_html=True)
 
-    with st.form("login_form", clear_on_submit=False):
-        email = st.text_input("E-mail", value=st.session_state.get("login_email", ""))
-        senha = st.text_input("Senha", type="password")
-        entrar = st.form_submit_button("Entrar")
-
-    if entrar:
-        ok = autenticar(email, senha)
-        if ok:
-            st.session_state["autenticado"] = True
-            st.session_state["login_email"] = (email or "").strip().lower()
-            st.rerun()
-        else:
-            st.session_state["autenticado"] = False
-            st.error("Credenciais inválidas.")
-
-    st.markdown(
-        """
-    <div class="login-links">
-      <div><span>Esqueci minha senha</span></div>
-      <div style="margin-top:6px;"><span>Não tem conta? Cadastre-se</span></div>
-    </div>
-  </div>
+        st.markdown(
+            """
+<div class="login-top">
+  <div class="login-logo">📄</div>
+  <h2 class="login-title">Bem-vindo de volta!</h2>
+  <p class="login-sub">Entre com suas credenciais para acessar o sistema</p>
 </div>
 """,
-        unsafe_allow_html=True,
-    )
+            unsafe_allow_html=True,
+        )
+
+        with st.form("login_form", clear_on_submit=False):
+            email = st.text_input("E-mail", value=st.session_state.get("login_email", ""))
+            senha = st.text_input("Senha", type="password")
+            entrar = st.form_submit_button("Entrar", use_container_width=True)
+
+        if entrar:
+            ok = autenticar(email, senha)
+            if ok:
+                st.session_state["autenticado"] = True
+                st.session_state["login_email"] = (email or "").strip().lower()
+                st.rerun()
+            else:
+                st.session_state["autenticado"] = False
+                st.error("Credenciais inválidas.")
+
+        st.markdown(
+            """
+<div class="login-links">
+  <div><span>Esqueci minha senha</span></div>
+  <div style="margin-top:6px;"><span>Não tem conta? Cadastre-se</span></div>
+</div>
+""",
+            unsafe_allow_html=True,
+        )
+
+        st.markdown("</div></div>", unsafe_allow_html=True)
 
 # Gate de acesso: se não estiver autenticado, mostra login e para o app
 if not st.session_state.get("autenticado", False):
