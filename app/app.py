@@ -17,21 +17,24 @@ import streamlit as st
 import hmac
 import hashlib
 
-# ===================== LOGIN UI (BONITO) =====================
+# ===================== LOGIN (SECRETS + HASH) =====================
 def _sha256(s: str) -> str:
     return hashlib.sha256(s.encode("utf-8")).hexdigest()
 
-def _verify_user(email: str, password: str) -> bool:
+def _get_users():
+    # evita KeyError e facilita debug
     auth = st.secrets.get("auth", {})
-    users = auth.get("users", {})
+    users = auth.get("users", {})  # precisa existir no secrets
+    return users if isinstance(users, dict) else {}
+
+def _verify_user(email: str, password: str) -> bool:
+    users = _get_users()
     stored_hash = users.get(email, "")
     if not stored_hash:
         return False
     return hmac.compare_digest(stored_hash, _sha256(password))
 
 def tela_login():
-    USERS = st.secrets["auth"]["users"]
-
     st.markdown("""
     <style>
     .login-wrapper{
@@ -40,6 +43,7 @@ def tela_login():
         align-items: center;
         justify-content: center;
         background: #f5f7fb;
+        padding: 18px;
     }
     .login-card{
         background: #ffffff;
@@ -76,9 +80,7 @@ def tela_login():
     </style>
     """, unsafe_allow_html=True)
 
-    st.markdown('<div class="login-wrapper">', unsafe_allow_html=True)
-    st.markdown('<div class="login-card">', unsafe_allow_html=True)
-
+    st.markdown('<div class="login-wrapper"><div class="login-card">', unsafe_allow_html=True)
     st.markdown('<div class="login-icon">🔐</div>', unsafe_allow_html=True)
     st.markdown('<div class="login-title">Bem-vindo de volta!</div>', unsafe_allow_html=True)
     st.markdown('<div class="login-sub">Entre com suas credenciais para acessar o sistema</div>', unsafe_allow_html=True)
@@ -87,23 +89,25 @@ def tela_login():
     senha = st.text_input("Senha", type="password", placeholder="••••••••")
 
     if st.button("Entrar", use_container_width=True):
-        if email in USERS and USERS[email] == senha:
+        if _verify_user(email.strip(), senha):
             st.session_state["logado"] = True
-            st.session_state["usuario"] = email
+            st.session_state["usuario"] = email.strip()
             st.rerun()
         else:
             st.error("❌ Usuário ou senha inválidos")
 
     st.markdown('<div style="margin-top:14px;font-size:.85rem;color:#64748b;">Esqueci minha senha</div>', unsafe_allow_html=True)
-
     st.markdown('</div></div>', unsafe_allow_html=True)
-
 
 # Controle de sessão
 if "logado" not in st.session_state:
     st.session_state["logado"] = False
 
 if not st.session_state["logado"]:
+    # mensagem clara se secrets não estiverem configurados
+    if not _get_users():
+        st.error("Secrets não configurado: crie [auth.users] no Streamlit Cloud → Settings → Secrets.")
+        st.stop()
     tela_login()
     st.stop()
 
@@ -709,6 +713,7 @@ with right:
             )
 
     st.markdown("</div>", unsafe_allow_html=True)
+
 
 
 
