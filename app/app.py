@@ -17,29 +17,57 @@ st.set_page_config(page_title="Painel de Bônus (T1) | Analistas", layout="wide"
 BASE_DIR = Path(__file__).resolve().parent.parent
 DATA_DIR = BASE_DIR / "data"
 
-# ===================== ESTILO (UI PROFISSIONAL) =====================
+# ===================== ESTILO (UI + SIDEBAR FIXA) =====================
 st.markdown(
     """
 <style>
 /* App base */
-.block-container { padding-top: 1.2rem; padding-bottom: 2rem; max-width: 1320px; }
+.block-container { padding-top: 1.1rem; padding-bottom: 2rem; max-width: 1320px; }
 h1, h2, h3 { letter-spacing: -0.02em; }
-
-/* Sidebar */
-section[data-testid="stSidebar"] { background: #0b1220; }
-section[data-testid="stSidebar"] * { color: #e5e7eb !important; }
-section[data-testid="stSidebar"] a { color: #e5e7eb !important; }
-section[data-testid="stSidebar"] .stRadio > label,
-section[data-testid="stSidebar"] .stSelectbox > label,
-section[data-testid="stSidebar"] .stTextInput > label { font-weight: 800; opacity: .95; }
 
 /* Remove menu/footer */
 #MainMenu {visibility: hidden;}
 footer {visibility: hidden;}
 header {visibility: hidden;}
 
+/* Sidebar (fixa, estilo "app") */
+section[data-testid="stSidebar"] { background: #0b1220; }
+section[data-testid="stSidebar"] * { color: #e5e7eb !important; }
+section[data-testid="stSidebar"] a { color: #e5e7eb !important; }
+section[data-testid="stSidebar"] .stRadio > label,
+section[data-testid="stSidebar"] .stSelectbox > label,
+section[data-testid="stSidebar"] .stTextInput > label { font-weight: 900; opacity: .95; }
+
+/* "Brand" do topo da sidebar */
+.sb-brand { display:flex; gap:10px; align-items:center; padding: 4px 2px 10px 2px; }
+.sb-logo {
+  width: 42px; height: 42px; border-radius: 12px;
+  background: rgba(255,255,255,.08);
+  display:flex; align-items:center; justify-content:center;
+  font-weight: 900; font-size: 16px;
+  border: 1px solid rgba(255,255,255,.10);
+}
+.sb-title { font-weight: 950; font-size: 1.05rem; line-height: 1.1; }
+.sb-sub { color: rgba(229,231,235,.70); font-size: .82rem; margin-top: 2px; }
+
+/* Menu fake da sidebar (visual) */
+.sb-menu { margin-top: 10px; }
+.sb-menu-title { font-size: .70rem; letter-spacing:.10em; opacity:.75; font-weight: 900; margin: 10px 0 8px 0; }
+.sb-pill {
+  border: 1px solid rgba(255,255,255,.10);
+  background: rgba(255,255,255,.06);
+  padding: 10px 12px;
+  border-radius: 12px;
+  font-weight: 850;
+}
+.sb-pill.active {
+  background: rgba(59,130,246,.22);
+  border-color: rgba(59,130,246,.45);
+}
+.sb-divider { height: 1px; background: rgba(255,255,255,.10); margin: 12px 0; }
+
 /* Header */
-.page-title { font-size: 1.7rem; font-weight: 900; line-height: 1.1; }
+.page-title { font-size: 1.7rem; font-weight: 950; line-height: 1.1; }
 .page-sub { color: rgba(15,23,42,.60); font-size: .95rem; margin-top: 4px; }
 
 /* KPI cards */
@@ -53,11 +81,11 @@ header {visibility: hidden;}
   box-shadow: 0 8px 24px rgba(15,23,42,.06);
 }
 .kpi-top { display:flex; align-items:center; justify-content:space-between; gap:10px; }
-.kpi-title { font-size: 0.90rem; font-weight: 900; color: rgba(15,23,42,.72); }
+.kpi-title { font-size: 0.90rem; font-weight: 950; color: rgba(15,23,42,.72); }
 .kpi-icon {
   width: 38px; height: 38px; border-radius: 12px;
   display:flex; align-items:center; justify-content:center;
-  font-size: 18px; font-weight: 900;
+  font-size: 18px; font-weight: 950;
   border: 1px solid rgba(15,23,42,.08);
 }
 .kpi-icon.blue   { background: rgba(59,130,246,.14); color: rgba(59,130,246,1); }
@@ -65,7 +93,7 @@ header {visibility: hidden;}
 .kpi-icon.amber  { background: rgba(245,158,11,.16); color: rgba(245,158,11,1); }
 .kpi-icon.purple { background: rgba(168,85,247,.14); color: rgba(168,85,247,1); }
 
-.kpi-value { font-size: 1.55rem; font-weight: 900; margin-top: 6px; }
+.kpi-value { font-size: 1.55rem; font-weight: 950; margin-top: 6px; }
 .kpi-sub { font-size: 0.85rem; color: rgba(15,23,42,.55); margin-top: 2px; }
 
 /* Section cards */
@@ -76,7 +104,7 @@ header {visibility: hidden;}
   padding: 14px 14px;
   box-shadow: 0 8px 24px rgba(15,23,42,.06);
 }
-.section-title { font-weight: 900; font-size: 1.05rem; margin-bottom: 10px; display:flex; gap:8px; align-items:center; }
+.section-title { font-weight: 950; font-size: 1.05rem; margin-bottom: 10px; display:flex; gap:8px; align-items:center; }
 
 /* Person cards */
 .person-card{
@@ -87,8 +115,8 @@ header {visibility: hidden;}
   box-shadow: 0 10px 28px rgba(15,23,42,.06);
   margin-bottom: 12px;
 }
-.person-name{ font-size:1.02rem; font-weight:900; margin:0; }
-.person-meta{ margin:4px 0 10px 0; color: rgba(15,23,42,.70); font-weight:800; font-size:.90rem;}
+.person-name{ font-size:1.02rem; font-weight:950; margin:0; }
+.person-meta{ margin:4px 0 10px 0; color: rgba(15,23,42,.70); font-weight:900; font-size:.90rem;}
 .person-grid{ display:grid; grid-template-columns: 1fr 1fr; gap:10px; margin-top:8px; }
 .pill{
   width:100%;
@@ -98,7 +126,7 @@ header {visibility: hidden;}
   padding:8px 10px;
   border-radius: 999px;
   font-size:.82rem;
-  font-weight:850;
+  font-weight:900;
   color: rgba(15,23,42,.78);
   box-sizing:border-box;
   white-space:nowrap;
@@ -108,7 +136,7 @@ header {visibility: hidden;}
 .bar { height: 10px; background: rgba(15,23,42,.10); border-radius: 999px; overflow:hidden; }
 .bar > div { height:100%; background: #0f172a; }
 .muted { color: rgba(15,23,42,.55); font-size:.86rem; }
-.warn { color: #b45309; font-weight: 900; }
+.warn { color: #b45309; font-weight: 950; }
 </style>
 """,
     unsafe_allow_html=True,
@@ -221,12 +249,6 @@ except Exception as e:
 # ===================== MESES (T1) =====================
 MESES = ["TRIMESTRE", "JANEIRO", "FEVEREIRO", "MARÇO"]
 
-# ===================== SIDEBAR (SÓ O PERÍODO PRIMEIRO) =====================
-with st.sidebar:
-    st.markdown("### Painel de Bônus")
-    filtro_mes = st.radio("Período", MESES, horizontal=False, key="periodo")
-    st.markdown("---")
-
 # ===================== LEITURA DA PLANILHA =====================
 def ler_planilha(mes: str) -> pd.DataFrame:
     if PLANILHA_PATH.exists():
@@ -261,7 +283,6 @@ def calcula_mes(df_mes: pd.DataFrame, nome_mes: str) -> pd.DataFrame:
         obs = row.get("OBSERVAÇÃO", "")
         valor_meta = row.get("VALOR MENSAL META", 0)
 
-        # Painel SOMENTE Analista
         if func != up("ANALISTA"):
             return pd.Series({
                 "MES": nome_mes, "META": 0.0, "RECEBIDO": 0.0, "PERDA": 0.0, "%": 0.0,
@@ -333,7 +354,6 @@ def calcula_mes(df_mes: pd.DataFrame, nome_mes: str) -> pd.DataFrame:
                     perdeu_itens.append("Conformidade")
                 continue
 
-            # Qualquer meta não mapeada: considera batida
             recebido += parcela
 
         meta = total_func
@@ -390,35 +410,53 @@ def montar_base(periodo: str) -> pd.DataFrame:
         out["INDICADORES_NAO_ENTREGUES"] = out["INDICADORES_NAO_ENTREGUES"].fillna("")
         return out
 
-    # mês único
     df_mes = ler_planilha(periodo)
     out = calcula_mes(df_mes, periodo)
     out["INDICADORES_NAO_ENTREGUES"] = out["perdeu_itens"].apply(lambda L: ", ".join(L) if isinstance(L, list) and L else "")
     return out
 
+# ===================== SIDEBAR "APP" (MENU + FILTROS) =====================
+with st.sidebar:
+    # Brand
+    st.markdown(
+        """
+<div class="sb-brand">
+  <div class="sb-logo">📊</div>
+  <div>
+    <div class="sb-title">Painel Analistas</div>
+    <div class="sb-sub">Bônus • T1</div>
+  </div>
+</div>
+""",
+        unsafe_allow_html=True,
+    )
+
+    st.markdown('<div class="sb-menu">', unsafe_allow_html=True)
+    st.markdown('<div class="sb-menu-title">MENU PRINCIPAL</div>', unsafe_allow_html=True)
+
+    # Menu visual (igual exemplo)
+    st.markdown('<div class="sb-pill">🏠 Dashboard</div>', unsafe_allow_html=True)
+    st.markdown('<div class="sb-pill active">📄 Relatório</div>', unsafe_allow_html=True)
+    st.markdown('<div class="sb-divider"></div>', unsafe_allow_html=True)
+
+    st.markdown('<div class="sb-menu-title">FILTROS</div>', unsafe_allow_html=True)
+    filtro_mes = st.radio("Período", MESES, index=0, key="periodo")
+
+# monta base depois do período escolhido
 try:
     dados_calc = montar_base(filtro_mes)
 except Exception as e:
     st.error(f"Erro ao montar base: {e}")
     st.stop()
 
-# Garantia final
+# garante analista
 dados_calc = dados_calc[dados_calc["FUNÇÃO"].astype(str).apply(up) == up("ANALISTA")].copy()
 
-# ===================== SIDEBAR (AGORA COM FILTROS DE VERDADE) =====================
-# (sem duplicar / sem ficar um por cima do outro)
+# filtros dependentes da base
+cidades = ["Todas"] + (sorted([c for c in dados_calc["CIDADE"].dropna().unique()]) if "CIDADE" in dados_calc.columns else [])
+tempos = ["Todos"] + (sorted([t for t in dados_calc["TEMPO DE CASA"].dropna().unique()]) if "TEMPO DE CASA" in dados_calc.columns else [])
+
 with st.sidebar:
-    st.markdown("### Filtros")
-
-    # opções dependem da base
-    cidades = ["Todas"]
-    if "CIDADE" in dados_calc.columns:
-        cidades += sorted([c for c in dados_calc["CIDADE"].dropna().unique()])
-
-    tempos = ["Todos"]
-    if "TEMPO DE CASA" in dados_calc.columns:
-        tempos += sorted([t for t in dados_calc["TEMPO DE CASA"].dropna().unique()])
-
     with st.form("filtros_form", clear_on_submit=False):
         filtro_nome = st.text_input("Buscar por nome", value=st.session_state.get("f_nome", ""))
         filtro_cidade = st.selectbox("Cidade", cidades, index=0)
@@ -428,12 +466,12 @@ with st.sidebar:
     if aplicar:
         st.session_state["f_nome"] = filtro_nome
 
-    st.markdown("---")
-    st.caption("Painel considera somente FUNÇÃO = ANALISTA.")
+    st.markdown('<div class="sb-divider"></div>', unsafe_allow_html=True)
+    st.caption("Logado como: analistas@brave")
+    st.caption("Sair")
 
 # ===================== APLICA FILTROS =====================
 dados_view = dados_calc.copy()
-
 if filtro_nome:
     dados_view = dados_view[dados_view["NOME"].astype(str).str.contains(filtro_nome, case=False, na=False)]
 if filtro_cidade != "Todas" and "CIDADE" in dados_view.columns:
