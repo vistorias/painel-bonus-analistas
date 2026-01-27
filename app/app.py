@@ -22,7 +22,7 @@ st.markdown(
     """
 <style>
 /* App base */
-.block-container { padding-top: 1.2rem; padding-bottom: 2rem; max-width: 1250px; }
+.block-container { padding-top: 1.2rem; padding-bottom: 2rem; max-width: 1320px; }
 h1, h2, h3 { letter-spacing: -0.02em; }
 
 /* Sidebar */
@@ -31,7 +31,7 @@ section[data-testid="stSidebar"] * { color: #e5e7eb !important; }
 section[data-testid="stSidebar"] a { color: #e5e7eb !important; }
 section[data-testid="stSidebar"] .stRadio > label,
 section[data-testid="stSidebar"] .stSelectbox > label,
-section[data-testid="stSidebar"] .stTextInput > label { font-weight: 700; opacity: .95; }
+section[data-testid="stSidebar"] .stTextInput > label { font-weight: 800; opacity: .95; }
 
 /* Remove menu/footer */
 #MainMenu {visibility: hidden;}
@@ -45,21 +45,26 @@ header {visibility: hidden;}
 /* KPI cards */
 .kpi-row { display:flex; gap:14px; flex-wrap:wrap; margin: 10px 0 14px 0; }
 .kpi {
-  flex: 1 1 230px;
+  flex: 1 1 235px;
   border: 1px solid rgba(15,23,42,.10);
   background: #ffffff;
   border-radius: 14px;
   padding: 14px 14px;
   box-shadow: 0 8px 24px rgba(15,23,42,.06);
 }
-.kpi-top { display:flex; align-items:center; justify-content:space-between; }
-.kpi-title { font-size: 0.90rem; font-weight: 700; color: rgba(15,23,42,.72); }
+.kpi-top { display:flex; align-items:center; justify-content:space-between; gap:10px; }
+.kpi-title { font-size: 0.90rem; font-weight: 900; color: rgba(15,23,42,.72); }
 .kpi-icon {
-  width: 36px; height: 36px; border-radius: 12px;
+  width: 38px; height: 38px; border-radius: 12px;
   display:flex; align-items:center; justify-content:center;
-  background: rgba(15,23,42,.06);
-  font-size: 18px;
+  font-size: 18px; font-weight: 900;
+  border: 1px solid rgba(15,23,42,.08);
 }
+.kpi-icon.blue   { background: rgba(59,130,246,.14); color: rgba(59,130,246,1); }
+.kpi-icon.green  { background: rgba(34,197,94,.14);  color: rgba(34,197,94,1); }
+.kpi-icon.amber  { background: rgba(245,158,11,.16); color: rgba(245,158,11,1); }
+.kpi-icon.purple { background: rgba(168,85,247,.14); color: rgba(168,85,247,1); }
+
 .kpi-value { font-size: 1.55rem; font-weight: 900; margin-top: 6px; }
 .kpi-sub { font-size: 0.85rem; color: rgba(15,23,42,.55); margin-top: 2px; }
 
@@ -83,17 +88,22 @@ header {visibility: hidden;}
   margin-bottom: 12px;
 }
 .person-name{ font-size:1.02rem; font-weight:900; margin:0; }
-.person-meta{ margin:4px 0 10px 0; color: rgba(15,23,42,.70); font-weight:700; font-size:.90rem;}
-.person-grid{ display:grid; grid-template-columns: 1fr 1fr; gap:8px; margin-top:8px; }
+.person-meta{ margin:4px 0 10px 0; color: rgba(15,23,42,.70); font-weight:800; font-size:.90rem;}
+.person-grid{ display:grid; grid-template-columns: 1fr 1fr; gap:10px; margin-top:8px; }
 .pill{
-  display:inline-flex; gap:8px; align-items:center;
+  width:100%;
+  display:flex; gap:8px; align-items:center; justify-content:space-between;
   background: rgba(15,23,42,.05);
   border:1px solid rgba(15,23,42,.08);
-  padding:6px 10px;
+  padding:8px 10px;
   border-radius: 999px;
   font-size:.82rem;
-  font-weight:750;
-  color: rgba(15,23,42,.75);
+  font-weight:850;
+  color: rgba(15,23,42,.78);
+  box-sizing:border-box;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
 }
 .bar { height: 10px; background: rgba(15,23,42,.10); border-radius: 999px; overflow:hidden; }
 .bar > div { height:100%; background: #0f172a; }
@@ -157,7 +167,7 @@ def render_kpis(total_possivel, recebido, perda, qtd):
       <div class="kpi">
         <div class="kpi-top">
           <div class="kpi-title">Total possível</div>
-          <div class="kpi-icon">R$</div>
+          <div class="kpi-icon blue">R$</div>
         </div>
         <div class="kpi-value">{brl(total_possivel)}</div>
         <div class="kpi-sub">Base filtrada</div>
@@ -166,7 +176,7 @@ def render_kpis(total_possivel, recebido, perda, qtd):
       <div class="kpi">
         <div class="kpi-top">
           <div class="kpi-title">Recebido</div>
-          <div class="kpi-icon">+</div>
+          <div class="kpi-icon green">+</div>
         </div>
         <div class="kpi-value">{brl(recebido)}</div>
         <div class="kpi-sub">Somatório do período</div>
@@ -175,7 +185,7 @@ def render_kpis(total_possivel, recebido, perda, qtd):
       <div class="kpi">
         <div class="kpi-top">
           <div class="kpi-title">Deixou de ganhar</div>
-          <div class="kpi-icon">!</div>
+          <div class="kpi-icon amber">!</div>
         </div>
         <div class="kpi-value">{brl(perda)}</div>
         <div class="kpi-sub">Perdas por metas</div>
@@ -184,7 +194,7 @@ def render_kpis(total_possivel, recebido, perda, qtd):
       <div class="kpi">
         <div class="kpi-top">
           <div class="kpi-title">Analistas</div>
-          <div class="kpi-icon">#</div>
+          <div class="kpi-icon purple">👤</div>
         </div>
         <div class="kpi-value">{int(qtd)}</div>
         <div class="kpi-sub">Registros no filtro</div>
@@ -211,15 +221,11 @@ except Exception as e:
 # ===================== MESES (T1) =====================
 MESES = ["TRIMESTRE", "JANEIRO", "FEVEREIRO", "MARÇO"]
 
-# ===================== SIDEBAR (FILTROS) =====================
+# ===================== SIDEBAR (SÓ O PERÍODO PRIMEIRO) =====================
 with st.sidebar:
     st.markdown("### Painel de Bônus")
-    filtro_mes = st.radio("Período", MESES, horizontal=False)
+    filtro_mes = st.radio("Período", MESES, horizontal=False, key="periodo")
     st.markdown("---")
-    filtro_nome = st.text_input("Buscar por nome", "")
-    filtro_cidade = st.selectbox("Cidade", ["Todas"])
-    filtro_tempo = st.selectbox("Tempo de casa", ["Todos"])
-    st.caption("Observação: o painel considera somente FUNÇÃO = ANALISTA.")
 
 # ===================== LEITURA DA PLANILHA =====================
 def ler_planilha(mes: str) -> pd.DataFrame:
@@ -255,6 +261,7 @@ def calcula_mes(df_mes: pd.DataFrame, nome_mes: str) -> pd.DataFrame:
         obs = row.get("OBSERVAÇÃO", "")
         valor_meta = row.get("VALOR MENSAL META", 0)
 
+        # Painel SOMENTE Analista
         if func != up("ANALISTA"):
             return pd.Series({
                 "MES": nome_mes, "META": 0.0, "RECEBIDO": 0.0, "PERDA": 0.0, "%": 0.0,
@@ -398,20 +405,31 @@ except Exception as e:
 # Garantia final
 dados_calc = dados_calc[dados_calc["FUNÇÃO"].astype(str).apply(up) == up("ANALISTA")].copy()
 
-# ===================== ATUALIZAÇÃO DE OPÇÕES NA SIDEBAR =====================
-# (atualiza cidade/tempo depois de ler dados)
+# ===================== SIDEBAR (AGORA COM FILTROS DE VERDADE) =====================
+# (sem duplicar / sem ficar um por cima do outro)
 with st.sidebar:
-    if "CIDADE" in dados_calc.columns:
-        cidades = ["Todas"] + sorted([c for c in dados_calc["CIDADE"].dropna().unique()])
-        filtro_cidade = st.selectbox("Cidade", cidades, index=0, key="cidade_final")
-    else:
-        filtro_cidade = "Todas"
+    st.markdown("### Filtros")
 
+    # opções dependem da base
+    cidades = ["Todas"]
+    if "CIDADE" in dados_calc.columns:
+        cidades += sorted([c for c in dados_calc["CIDADE"].dropna().unique()])
+
+    tempos = ["Todos"]
     if "TEMPO DE CASA" in dados_calc.columns:
-        tempos = ["Todos"] + sorted([t for t in dados_calc["TEMPO DE CASA"].dropna().unique()])
-        filtro_tempo = st.selectbox("Tempo de casa", tempos, index=0, key="tempo_final")
-    else:
-        filtro_tempo = "Todos"
+        tempos += sorted([t for t in dados_calc["TEMPO DE CASA"].dropna().unique()])
+
+    with st.form("filtros_form", clear_on_submit=False):
+        filtro_nome = st.text_input("Buscar por nome", value=st.session_state.get("f_nome", ""))
+        filtro_cidade = st.selectbox("Cidade", cidades, index=0)
+        filtro_tempo = st.selectbox("Tempo de casa", tempos, index=0)
+        aplicar = st.form_submit_button("Aplicar filtros")
+
+    if aplicar:
+        st.session_state["f_nome"] = filtro_nome
+
+    st.markdown("---")
+    st.caption("Painel considera somente FUNÇÃO = ANALISTA.")
 
 # ===================== APLICA FILTROS =====================
 dados_view = dados_calc.copy()
@@ -450,7 +468,7 @@ left, right = st.columns([1.05, 1.25], gap="large")
 
 with left:
     st.markdown('<div class="section">', unsafe_allow_html=True)
-    st.markdown('<div class="section-title">Resumo</div>', unsafe_allow_html=True)
+    st.markdown('<div class="section-title">📌 Resumo</div>', unsafe_allow_html=True)
 
     cumprimento_medio = 0.0 if total_possivel == 0 else (recebido / total_possivel) * 100.0
 
@@ -476,14 +494,14 @@ with left:
         top["CIDADE"] = top["CIDADE"].astype(str).str.title()
 
     st.markdown('<div style="height:10px"></div>', unsafe_allow_html=True)
-    st.markdown('<div class="section-title">Top 5</div>', unsafe_allow_html=True)
+    st.markdown('<div class="section-title">🏆 Top 5</div>', unsafe_allow_html=True)
     st.dataframe(top, use_container_width=True, hide_index=True)
 
     st.markdown('</div>', unsafe_allow_html=True)
 
 with right:
     st.markdown('<div class="section">', unsafe_allow_html=True)
-    st.markdown('<div class="section-title">Analistas</div>', unsafe_allow_html=True)
+    st.markdown('<div class="section-title">👥 Analistas</div>', unsafe_allow_html=True)
 
     cols_cards = st.columns(2, gap="medium")
     for idx, (_, row) in enumerate(dados_view.iterrows()):
@@ -512,16 +530,19 @@ with right:
               <div class="person-meta">{meta_line}</div>
 
               <div class="person-grid">
-                <div class="pill">Meta: <b>{brl(meta)}</b></div>
-                <div class="pill">Recebido: <b>{brl(rec)}</b></div>
-                <div class="pill">Perda: <b>{brl(per)}</b></div>
-                <div class="pill">Cumprimento: <b>{pct:.1f}%</b> ({tag})</div>
+                <div class="pill"><span>Meta</span><b>{brl(meta)}</b></div>
+                <div class="pill"><span>Recebido</span><b>{brl(rec)}</b></div>
+                <div class="pill"><span>Perda</span><b>{brl(per)}</b></div>
+                <div class="pill"><span>Cumprimento</span><b>{pct:.1f}%</b></div>
               </div>
 
               <div style="height:10px"></div>
               <div class="bar"><div style="width:{max(0,min(100,pct)):.1f}%"></div></div>
 
-              {"<div style='height:10px'></div><div class='muted'><span class='warn'>Indicadores não entregues:</span> "+perdidos_txt+"</div>" if perdidos_txt else ""}
+              <div style="height:10px"></div>
+              <div class="muted"><b>Status:</b> {tag}</div>
+
+              {"<div style='height:8px'></div><div class='muted'><span class='warn'>Indicadores não entregues:</span> "+perdidos_txt+"</div>" if perdidos_txt else ""}
               {"<div style='height:8px'></div><div class='muted'>Obs.: "+obs+"</div>" if obs else ""}
             </div>
             """,
