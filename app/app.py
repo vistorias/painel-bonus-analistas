@@ -193,19 +193,19 @@ section[data-testid="stSidebar"] label{
     unsafe_allow_html=True,
 )
 
-# ===================== LOGIN =====================
+# ===================== LOGIN (NATIVO, ESTÁVEL) =====================
 
 def _safe_eq(a: str, b: str) -> bool:
     return hmac.compare_digest(a.encode("utf-8"), b.encode("utf-8"))
 
 def get_usuarios():
-    # Streamlit Cloud: Settings -> Secrets
+    # Streamlit Cloud -> Settings -> Secrets
     # [auth]
     # users = { "analistas@brave" = "brave123", "wendell_bnascimento@outlook.com" = "123456" }
     try:
         return dict(st.secrets["auth"]["users"])
     except Exception:
-        # fallback local (secrets não configurado)
+        # fallback local
         return {
             "analistas@brave": "brave123",
             "wendell_bnascimento@outlook.com": "123456",
@@ -221,110 +221,70 @@ def autenticar(email: str, senha: str) -> bool:
     return _safe_eq(str(USUARIOS[email]), senha)
 
 def tela_login():
+    # esconde sidebar e ajusta tela só no login
     st.markdown(
         """
 <style>
-/* esconde header do Streamlit só no login (remove “barra branca”) */
-header[data-testid="stHeader"]{ display:none !important; }
-
-/* overlay tela toda, mas SEM bloquear clique fora do card */
-.login-overlay{
-  position: fixed;
-  inset: 0;
-  display:flex;
-  align-items:center;
-  justify-content:center;
-  background: #ffffff;
-  z-index: 9999;
-  pointer-events: none; /* não bloqueia a página */
-}
-
-/* card recebe clique/teclado */
-.login-box{
-  width: 520px;
-  max-width: calc(100vw - 48px);
-  background: #ffffff;
-  border: 1px solid rgba(15,23,42,.10);
-  border-radius: 18px;
-  box-shadow: 0 14px 40px rgba(15,23,42,.10);
-  padding: 26px 26px 18px 26px;
-  pointer-events: auto; /* permite digitar e clicar */
-}
-
-.login-top{
-  display:flex;
-  flex-direction:column;
-  align-items:center;
-  gap:10px;
-  margin-bottom: 14px;
-}
-.login-logo{
-  width: 58px; height: 58px; border-radius: 16px;
-  background: rgba(59,130,246,.12);
-  border: 1px solid rgba(59,130,246,.20);
-  display:flex; align-items:center; justify-content:center;
-  font-size: 26px; font-weight: 950;
-}
-.login-title{ font-size: 1.35rem; font-weight: 950; margin: 0; text-align:center; }
-.login-sub{ color: rgba(15,23,42,.60); margin: 0; font-size: .95rem; text-align:center; }
-
-.login-links{
-  text-align:center;
-  margin-top: 10px;
-  color: rgba(15,23,42,.60);
-  font-size: .90rem;
-}
-.login-links span{ opacity:.7; }
+section[data-testid="stSidebar"]{ display:none !important; }
+div.block-container{ max-width: 900px !important; padding-top: 0.5rem !important; }
 </style>
         """,
         unsafe_allow_html=True,
     )
 
-    # overlay
-    st.markdown('<div class="login-overlay">', unsafe_allow_html=True)
+    # espaçador pra centralizar verticalmente (ajuste 18vh se quiser mais alto/baixo)
+    st.markdown("<div style='height:18vh'></div>", unsafe_allow_html=True)
 
-    # card
-    st.markdown('<div class="login-box">', unsafe_allow_html=True)
-
-    st.markdown(
-        """
-<div class="login-top">
-  <div class="login-logo">📄</div>
-  <h2 class="login-title">Bem-vindo de volta!</h2>
-  <p class="login-sub">Entre com suas credenciais para acessar o sistema</p>
+    c1, c2, c3 = st.columns([1, 1.4, 1])
+    with c2:
+        st.markdown(
+            """
+<div style="
+  border:1px solid rgba(15,23,42,.10);
+  border-radius:18px;
+  box-shadow:0 14px 40px rgba(15,23,42,.10);
+  padding:26px 26px 18px 26px;
+  background:#fff;
+  text-align:center;">
+  <div style="
+    width:58px;height:58px;border-radius:16px;
+    margin:0 auto 10px auto;
+    background:rgba(59,130,246,.12);
+    border:1px solid rgba(59,130,246,.20);
+    display:flex;align-items:center;justify-content:center;
+    font-size:26px;font-weight:950;">📄</div>
+  <div style="font-size:1.35rem;font-weight:950;">Bem-vindo de volta!</div>
+  <div style="margin-top:6px;color:rgba(15,23,42,.60);font-size:.95rem;">
+    Entre com suas credenciais para acessar o sistema
+  </div>
 </div>
-""",
-        unsafe_allow_html=True,
-    )
+            """,
+            unsafe_allow_html=True,
+        )
 
-    with st.form("login_form", clear_on_submit=False):
-        email = st.text_input("E-mail", value=st.session_state.get("login_email", ""))
-        senha = st.text_input("Senha", type="password")
-        entrar = st.form_submit_button("Entrar", use_container_width=True)
+        st.markdown("<div style='height:10px'></div>", unsafe_allow_html=True)
 
-    if entrar:
-        if autenticar(email, senha):
-            st.session_state["autenticado"] = True
-            st.session_state["login_email"] = (email or "").strip().lower()
-            st.rerun()
-        else:
-            st.session_state["autenticado"] = False
-            st.error("Credenciais inválidas.")
+        with st.form("login_form", clear_on_submit=False):
+            email = st.text_input("E-mail", value=st.session_state.get("login_email", ""))
+            senha = st.text_input("Senha", type="password")
+            entrar = st.form_submit_button("Entrar", use_container_width=True)
 
-    st.markdown(
-        """
-<div class="login-links">
-  <div><span>Esqueci minha senha</span></div>
-  <div style="margin-top:6px;"><span>Não tem conta? Cadastre-se</span></div>
-</div>
-""",
-        unsafe_allow_html=True,
-    )
+        if entrar:
+            if autenticar(email, senha):
+                st.session_state["autenticado"] = True
+                st.session_state["login_email"] = (email or "").strip().lower()
+                st.rerun()
+            else:
+                st.session_state["autenticado"] = False
+                st.error("Credenciais inválidas.")
 
-    st.markdown("</div>", unsafe_allow_html=True)  # fecha login-box
-    st.markdown("</div>", unsafe_allow_html=True)  # fecha login-overlay
+        st.markdown(
+            "<div style='text-align:center;color:rgba(15,23,42,.55);font-size:.90rem;margin-top:10px;'>"
+            "<div>Esqueci minha senha</div><div style='margin-top:6px;'>Não tem conta? Cadastre-se</div></div>",
+            unsafe_allow_html=True,
+        )
 
-# GATE (tem que ficar ANTES de qualquer sidebar/conteúdo)
+# gate — TEM que vir antes de sidebar e do resto do painel
 if not st.session_state.get("autenticado", False):
     tela_login()
     st.stop()
@@ -758,5 +718,6 @@ with right:
             )
 
     st.markdown("</div>", unsafe_allow_html=True)
+
 
 
