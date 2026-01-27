@@ -404,7 +404,7 @@ def montar_base(periodo: str) -> pd.DataFrame:
             ignore_index=True
         )
 
-        group_cols = [c for c in ["CIDADE", "NOME", "FUNÇÃO", "DATA DE ADMISSÃO", "TEMPO DE CASA"] if c in full.columns]
+        group_cols = [c for c in ["EMPRESA", "NOME", "FUNÇÃO", "DATA DE ADMISSÃO", "TEMPO DE CASA"] if c in full.columns]
         if not group_cols:
             group_cols = ["NOME", "FUNÇÃO"]
 
@@ -480,12 +480,12 @@ with st.sidebar:
     dados_calc = montar_base(filtro_mes)
     dados_calc = dados_calc[dados_calc["FUNÇÃO"].astype(str).apply(up) == up("ANALISTA")].copy()
 
-    cidades = ["Todas"] + (sorted([c for c in dados_calc["CIDADE"].dropna().unique()]) if "CIDADE" in dados_calc.columns else [])
+    EMPRESAs = ["Todas"] + (sorted([c for c in dados_calc["EMPRESA"].dropna().unique()]) if "EMPRESA" in dados_calc.columns else [])
     tempos = ["Todos"] + (sorted([t for t in dados_calc["TEMPO DE CASA"].dropna().unique()]) if "TEMPO DE CASA" in dados_calc.columns else [])
 
     with st.form("filtros_form", clear_on_submit=False):
         filtro_nome = st.text_input("Buscar por nome", value=st.session_state.get("f_nome", ""))
-        filtro_cidade = st.selectbox("Cidade", cidades, index=0)
+        filtro_EMPRESA = st.selectbox("EMPRESA", EMPRESAs, index=0)
         filtro_tempo = st.selectbox("Tempo de casa", tempos, index=0)
         aplicar = st.form_submit_button("Aplicar filtros")
     if aplicar:
@@ -505,8 +505,8 @@ dados_view = dados_calc.copy()
 
 if filtro_nome:
     dados_view = dados_view[dados_view["NOME"].astype(str).str.contains(filtro_nome, case=False, na=False)]
-if filtro_cidade != "Todas" and "CIDADE" in dados_view.columns:
-    dados_view = dados_view[dados_view["CIDADE"] == filtro_cidade]
+if filtro_EMPRESA != "Todas" and "EMPRESA" in dados_view.columns:
+    dados_view = dados_view[dados_view["EMPRESA"] == filtro_EMPRESA]
 if filtro_tempo != "Todos" and "TEMPO DE CASA" in dados_view.columns:
     dados_view = dados_view[dados_view["TEMPO DE CASA"] == filtro_tempo]
 
@@ -547,7 +547,7 @@ with left:
     st.dataframe(resumo, use_container_width=True, hide_index=True)
 
     top = dados_view.head(5).copy()
-    cols_top = [c for c in ["NOME", "CIDADE", "%", "RECEBIDO", "PERDA"] if c in top.columns]
+    cols_top = [c for c in ["NOME", "EMPRESA", "%", "RECEBIDO", "PERDA"] if c in top.columns]
     top = top[cols_top]
     if "%" in top.columns:
         top["%"] = top["%"].apply(lambda x: f"{float(x):.1f}%")
@@ -555,8 +555,8 @@ with left:
         top["RECEBIDO"] = top["RECEBIDO"].apply(brl)
     if "PERDA" in top.columns:
         top["PERDA"] = top["PERDA"].apply(brl)
-    if "CIDADE" in top.columns:
-        top["CIDADE"] = top["CIDADE"].astype(str).str.title()
+    if "EMPRESA" in top.columns:
+        top["EMPRESA"] = top["EMPRESA"].astype(str).str.title()
 
     st.markdown('<div style="height:10px"></div>', unsafe_allow_html=True)
     st.markdown('<div class="section-title">🏆 Top 5</div>', unsafe_allow_html=True)
@@ -577,14 +577,14 @@ with right:
         per = float(row.get("PERDA", 0) or 0)
 
         nome = str(row.get("NOME", "")).title()
-        cidade = str(row.get("CIDADE", "")).title() if "CIDADE" in dados_view.columns else ""
+        EMPRESA = str(row.get("EMPRESA", "")).title() if "EMPRESA" in dados_view.columns else ""
         tempo = str(row.get("TEMPO DE CASA", "")).strip() if "TEMPO DE CASA" in dados_view.columns else ""
 
         obs = texto_obs(row.get("_obs", row.get("OBSERVAÇÃO", "")))
         perdidos_txt = texto_obs(row.get("INDICADORES_NAO_ENTREGUES", ""))
 
         tag = "Excelente" if pct >= 95 else ("Atenção" if pct < 80 else "Ok")
-        meta_line = f"Analista — {cidade}" if cidade else "Analista"
+        meta_line = f"Analista — {EMPRESA}" if EMPRESA else "Analista"
         if tempo:
             meta_line = f"{meta_line} • {tempo}"
 
@@ -616,3 +616,4 @@ with right:
             )
 
     st.markdown("</div>", unsafe_allow_html=True)
+
