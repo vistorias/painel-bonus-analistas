@@ -32,7 +32,31 @@ st.markdown(
 /* Remove menu/footer */
 #MainMenu {visibility: hidden;}
 footer {visibility: hidden;}
-header {visibility: hidden;}
+/* NÃO esconda o header inteiro, senão o "voltar" da sidebar some */
+header[data-testid="stHeader"]{
+  background: transparent !important;
+  height: 0px !important;
+}
+
+/* Esconde só o conteúdo do header (mantém a área mínima pro controle existir) */
+header[data-testid="stHeader"] *{
+  visibility: hidden !important;
+}
+
+/* Mas garante que o controle de reabrir a sidebar apareça */
+div[data-testid="collapsedControl"],
+div[data-testid="collapsedControl"] *{
+  visibility: visible !important;
+  opacity: 1 !important;
+}
+
+/* Deixa o "voltar" sempre clicável e por cima */
+div[data-testid="collapsedControl"]{
+  position: fixed !important;
+  top: 10px !important;
+  left: 10px !important;
+  z-index: 999999 !important;
+}
 
 /* Largura geral */
 .block-container { padding-top: 1.2rem; padding-bottom: 2rem; max-width: 1400px; }
@@ -655,6 +679,7 @@ with right:
 
 # opcional: se você quiser que “Dashboard” mostre algo depois, você pode trocar o conteúdo com base em `pagina`
 # (deixei tudo no Relatório porque foi o que você pediu)
+
 
 
 
