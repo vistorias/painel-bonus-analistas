@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 # ============================================================
 # Painel de Bônus Trimestral (T1) | ANALISTAS
-# Sidebar custom (fixa) com toggle próprio (não some)
+# Sidebar REAL (coluna à esquerda) com toggle estável
 # ============================================================
 
 import streamlit as st
@@ -23,71 +23,39 @@ if "sb_open" not in st.session_state:
 def toggle_sidebar():
     st.session_state.sb_open = not st.session_state.sb_open
 
-# ===================== ESTILO (UI + SIDEBAR CUSTOM) =====================
+# ===================== ESTILO (UI) =====================
 st.markdown(
     """
 <style>
-/* Remove menu/footer e sidebar nativa */
 #MainMenu {visibility: hidden;}
 footer {visibility: hidden;}
 header {visibility: hidden;}
-section[data-testid="stSidebar"] { display: none !important; } /* some a sidebar nativa */
-button[kind="header"] { display:none !important; } /* tenta reduzir o botão nativo */
 
-/* App base */
 .block-container { padding-top: 1.1rem; padding-bottom: 2rem; max-width: 1400px; }
 h1,h2,h3 { letter-spacing:-0.02em; }
 
-/* Layout: sidebar custom fixa */
 :root{
-  --sb-w-open: 320px;
-  --sb-w-closed: 74px;
   --sb-bg: #0b1220;
   --sb-fg: #e5e7eb;
   --sb-muted: rgba(229,231,235,.70);
+  --card-border: rgba(15,23,42,.10);
+  --shadow: 0 10px 28px rgba(15,23,42,.06);
 }
 
-.custom-sidebar{
-  position: fixed;
-  top: 0; left: 0;
-  height: 100vh;
-  width: var(--sb-w-open);
+/* “Sidebar” como coluna (estilização) */
+.sidebar-wrap{
   background: var(--sb-bg);
   color: var(--sb-fg);
-  z-index: 9999;
-  border-right: 1px solid rgba(255,255,255,.08);
-  padding: 16px 14px;
-  overflow: hidden;
-  transition: width .18s ease;
-}
-.custom-sidebar.closed{
-  width: var(--sb-w-closed);
-}
-.main-wrap{
-  margin-left: var(--sb-w-open);
-  transition: margin-left .18s ease;
-}
-.main-wrap.closed{
-  margin-left: var(--sb-w-closed);
+  border-radius: 18px;
+  padding: 14px 12px;
+  border: 1px solid rgba(255,255,255,.08);
+  box-shadow: 0 12px 34px rgba(0,0,0,.22);
+  position: sticky;
+  top: 10px;
 }
 
-/* Toggle button */
-.sb-toggle{
-  position: absolute;
-  top: 12px; right: 12px;
-  width: 38px; height: 38px;
-  border-radius: 12px;
-  display:flex; align-items:center; justify-content:center;
-  background: rgba(255,255,255,.08);
-  border: 1px solid rgba(255,255,255,.10);
-  cursor: pointer;
-  user-select: none;
-  font-weight: 900;
-}
-.sb-toggle:hover{ background: rgba(255,255,255,.12); }
-
-/* Brand */
-.sb-brand{ display:flex; gap:10px; align-items:center; margin-top: 28px; }
+/* títulos e divisores */
+.sb-brand{ display:flex; gap:10px; align-items:center; margin-top: 8px; }
 .sb-logo{
   width: 42px; height: 42px; border-radius: 12px;
   background: rgba(255,255,255,.08);
@@ -97,9 +65,10 @@ h1,h2,h3 { letter-spacing:-0.02em; }
 }
 .sb-title{ font-weight: 950; font-size: 1.02rem; line-height: 1.1; }
 .sb-sub{ color: var(--sb-muted); font-size: .80rem; margin-top: 2px; }
-
-/* Menu */
 .sb-menu-title{ font-size: .70rem; letter-spacing:.10em; opacity:.75; font-weight: 900; margin: 16px 0 10px 0; }
+.sb-divider{ height:1px; background: rgba(255,255,255,.10); margin: 14px 0; }
+
+/* Pills menu */
 .sb-pill{
   border: 1px solid rgba(255,255,255,.10);
   background: rgba(255,255,255,.06);
@@ -112,11 +81,35 @@ h1,h2,h3 { letter-spacing:-0.02em; }
   background: rgba(59,130,246,.22);
   border-color: rgba(59,130,246,.45);
 }
-.sb-divider{ height:1px; background: rgba(255,255,255,.10); margin: 14px 0; }
 
-/* Inputs dentro da sidebar custom (Streamlit) */
-.custom-sb-inputs label, .custom-sb-inputs span, .custom-sb-inputs p, .custom-sb-inputs div {
+/* Força labels/inputs claros no fundo escuro */
+.sidebar-wrap label, .sidebar-wrap span, .sidebar-wrap p, .sidebar-wrap div {
   color: var(--sb-fg) !important;
+}
+.sidebar-wrap .stTextInput input,
+.sidebar-wrap .stSelectbox div[data-baseweb="select"] > div{
+  background: rgba(255,255,255,.06) !important;
+  border: 1px solid rgba(255,255,255,.12) !important;
+  color: var(--sb-fg) !important;
+}
+.sidebar-wrap .stRadio div[role="radiogroup"]{
+  background: rgba(255,255,255,.03);
+  border: 1px solid rgba(255,255,255,.08);
+  padding: 10px 10px 2px 10px;
+  border-radius: 14px;
+}
+
+/* Botão toggle */
+.sb-toggle-btn button{
+  width: 100%;
+  border-radius: 12px !important;
+  font-weight: 900 !important;
+  border: 1px solid rgba(255,255,255,.14) !important;
+  background: rgba(255,255,255,.08) !important;
+  color: var(--sb-fg) !important;
+}
+.sb-toggle-btn button:hover{
+  background: rgba(255,255,255,.12) !important;
 }
 
 /* Header */
@@ -127,7 +120,7 @@ h1,h2,h3 { letter-spacing:-0.02em; }
 .kpi-row { display:flex; gap:14px; flex-wrap:wrap; margin: 10px 0 14px 0; }
 .kpi{
   flex: 1 1 235px;
-  border: 1px solid rgba(15,23,42,.10);
+  border: 1px solid var(--card-border);
   background: #fff;
   border-radius: 14px;
   padding: 14px;
@@ -150,7 +143,7 @@ h1,h2,h3 { letter-spacing:-0.02em; }
 
 /* Section */
 .section{
-  border: 1px solid rgba(15,23,42,.10);
+  border: 1px solid var(--card-border);
   background: #fff;
   border-radius: 16px;
   padding: 14px;
@@ -161,11 +154,11 @@ h1,h2,h3 { letter-spacing:-0.02em; }
 
 /* Cards */
 .person-card{
-  border:1px solid rgba(15,23,42,.10);
+  border:1px solid var(--card-border);
   background:#fff;
   border-radius:16px;
   padding:14px;
-  box-shadow: 0 10px 28px rgba(15,23,42,.06);
+  box-shadow: var(--shadow);
   margin-bottom: 12px;
 }
 .person-name{ font-size:1.02rem; font-weight:950; margin:0; }
@@ -354,57 +347,46 @@ def calcula_mes(df_mes: pd.DataFrame, nome_mes: str) -> pd.DataFrame:
             parcela = total_func * float(peso)
             item_norm = up(item)
 
-            # ---------- PRODUÇÃO ----------
             if item_norm in [up("PRODUÇÃO"), up("PRODUCAO")]:
                 bateu = bool_safe(row.get("BATEU_PRODUCAO"), True)
-                if bateu:
-                    recebido += parcela
+                if bateu: recebido += parcela
                 else:
                     perdas += parcela
                     perdeu_itens.append("Produção")
                 continue
 
-            # ---------- TEMPO MÉDIO GERAL ----------
             if item_norm in [up("TEMPO MÉDIO GERAL DE ANÁLISE"), up("TEMPO MEDIO GERAL DE ANALISE")]:
                 bateu = bool_safe(row.get("BATEU_TMG_GERAL"), True)
-                if bateu:
-                    recebido += parcela
+                if bateu: recebido += parcela
                 else:
                     perdas += parcela
                     perdeu_itens.append("Tempo Médio Geral de Análise")
                 continue
 
-            # ---------- TEMPO MÉDIO DO ANALISTA ----------
             if item_norm in [up("TEMPO MÉDIO DE ANÁLISE DO ANALISTA"), up("TEMPO MEDIO DE ANALISE DO ANALISTA")]:
                 bateu = bool_safe(row.get("BATEU_TMA_ANALISTA"), True)
-                if bateu:
-                    recebido += parcela
+                if bateu: recebido += parcela
                 else:
                     perdas += parcela
                     perdeu_itens.append("Tempo Médio de Análise do Analista")
                 continue
 
-            # ---------- TEMPO MÉDIO DA FILA ----------
             if item_norm in [up("TEMPO MÉDIO DA FILA"), up("TEMPO MEDIO DA FILA")]:
                 bateu = bool_safe(row.get("BATEU_TEMPO_FILA"), True)
-                if bateu:
-                    recebido += parcela
+                if bateu: recebido += parcela
                 else:
                     perdas += parcela
                     perdeu_itens.append("Tempo Médio da Fila")
                 continue
 
-            # ---------- CONFORMIDADE ----------
             if item_norm == up("CONFORMIDADE"):
                 bateu = bool_safe(row.get("BATEU_CONFORMIDADE"), True)
-                if bateu:
-                    recebido += parcela
+                if bateu: recebido += parcela
                 else:
                     perdas += parcela
                     perdeu_itens.append("Conformidade")
                 continue
 
-            # Qualquer item não mapeado: considera batido
             recebido += parcela
 
         meta = total_func
@@ -467,31 +449,23 @@ def montar_base(periodo: str) -> pd.DataFrame:
     )
     return out
 
-# ===================== SIDEBAR CUSTOM (TOGGLE) =====================
-_ = st.button("toggle", on_click=toggle_sidebar, key="__sb_toggle_btn", help="Abrir/fechar menu")
-st.markdown(
-    """
-<style>
-div[data-testid="stButton"][id="__sb_toggle_btn"] { display:none; }
-</style>
-""",
-    unsafe_allow_html=True,
-)
+# ===================== LAYOUT PRINCIPAL: SIDEBAR (COLUNA) + CONTEÚDO =====================
+if st.session_state.sb_open:
+    col_sb, col_main = st.columns([0.27, 0.73], gap="large")
+else:
+    col_sb, col_main = st.columns([0.10, 0.90], gap="large")
 
-sb_class = "custom-sidebar" + ("" if st.session_state.sb_open else " closed")
-main_class = "main-wrap" + ("" if st.session_state.sb_open else " closed")
+# ===================== SIDEBAR =====================
+with col_sb:
+    st.markdown('<div class="sidebar-wrap">', unsafe_allow_html=True)
 
-st.markdown(f'<div class="{sb_class}">', unsafe_allow_html=True)
+    st.markdown('<div class="sb-toggle-btn">', unsafe_allow_html=True)
+    st.button("« Recolher" if st.session_state.sb_open else "» Abrir", on_click=toggle_sidebar)
+    st.markdown('</div>', unsafe_allow_html=True)
 
-st.markdown(
-    """
-<div class="sb-toggle" onclick="document.querySelector('button[kind=secondary]').click();">«</div>
-""",
-    unsafe_allow_html=True,
-)
-
-st.markdown(
-    """
+    if st.session_state.sb_open:
+        st.markdown(
+            """
 <div class="sb-brand">
   <div class="sb-logo">📊</div>
   <div>
@@ -501,128 +475,129 @@ st.markdown(
 </div>
 
 <div class="sb-menu-title">MENU PRINCIPAL</div>
-<div class="sb-pill">🏠 Dashboard</div>
-<div class="sb-pill active">📄 Relatório</div>
+<div class="sb-pill">Dashboard</div>
+<div class="sb-pill active">Relatório</div>
 <div class="sb-divider"></div>
 <div class="sb-menu-title">FILTROS</div>
 """,
-    unsafe_allow_html=True,
-)
+            unsafe_allow_html=True,
+        )
 
-st.markdown('<div class="custom-sb-inputs">', unsafe_allow_html=True)
-filtro_mes = st.radio("Período", MESES, index=0, key="periodo")
-st.markdown('</div>', unsafe_allow_html=True)
+        filtro_mes = st.radio("Período", MESES, index=0, key="periodo")
 
-dados_calc = montar_base(filtro_mes)
-dados_calc = dados_calc[dados_calc["FUNÇÃO"].astype(str).apply(up) == up("ANALISTA")].copy()
+        dados_calc = montar_base(filtro_mes)
+        dados_calc = dados_calc[dados_calc["FUNÇÃO"].astype(str).apply(up) == up("ANALISTA")].copy()
 
-cidades = ["Todas"] + (sorted([c for c in dados_calc["CIDADE"].dropna().unique()]) if "CIDADE" in dados_calc.columns else [])
-tempos = ["Todos"] + (sorted([t for t in dados_calc["TEMPO DE CASA"].dropna().unique()]) if "TEMPO DE CASA" in dados_calc.columns else [])
+        cidades = ["Todas"] + (sorted([c for c in dados_calc["CIDADE"].dropna().unique()]) if "CIDADE" in dados_calc.columns else [])
+        tempos = ["Todos"] + (sorted([t for t in dados_calc["TEMPO DE CASA"].dropna().unique()]) if "TEMPO DE CASA" in dados_calc.columns else [])
 
-st.markdown('<div class="custom-sb-inputs">', unsafe_allow_html=True)
-with st.form("filtros_form", clear_on_submit=False):
-    filtro_nome = st.text_input("Buscar por nome", value=st.session_state.get("f_nome", ""))
-    filtro_cidade = st.selectbox("Cidade", cidades, index=0)
-    filtro_tempo = st.selectbox("Tempo de casa", tempos, index=0)
-    aplicar = st.form_submit_button("Aplicar filtros")
-if aplicar:
-    st.session_state["f_nome"] = filtro_nome
-st.markdown('</div>', unsafe_allow_html=True)
+        with st.form("filtros_form", clear_on_submit=False):
+            filtro_nome = st.text_input("Buscar por nome", value=st.session_state.get("f_nome", ""))
+            filtro_cidade = st.selectbox("Cidade", cidades, index=0)
+            filtro_tempo = st.selectbox("Tempo de casa", tempos, index=0)
+            aplicar = st.form_submit_button("Aplicar filtros")
+        if aplicar:
+            st.session_state["f_nome"] = filtro_nome
 
-st.markdown(
-    '<div class="sb-divider"></div>'
-    '<div class="custom-sb-inputs">'
-    '<p style="margin:0;color:rgba(229,231,235,.7);font-weight:800;">Logado como</p>'
-    '<p style="margin:2px 0 0 0;font-weight:900;">analistas@brave</p>'
-    '</div>',
-    unsafe_allow_html=True
-)
+        st.markdown('<div class="sb-divider"></div>', unsafe_allow_html=True)
+        st.markdown('<p style="margin:0;color:rgba(229,231,235,.7);font-weight:800;">Logado como</p>', unsafe_allow_html=True)
+        st.markdown('<p style="margin:2px 0 0 0;font-weight:900;">analistas@brave</p>', unsafe_allow_html=True)
 
-st.markdown("</div>", unsafe_allow_html=True)  # fecha sidebar
+    else:
+        # Sidebar recolhida: mantém só o período (opcional) e usa defaults
+        filtro_mes = st.session_state.get("periodo", "TRIMESTRE")
+        dados_calc = montar_base(filtro_mes)
+        dados_calc = dados_calc[dados_calc["FUNÇÃO"].astype(str).apply(up) == up("ANALISTA")].copy()
+        filtro_nome = st.session_state.get("f_nome", "")
+        filtro_cidade = "Todas"
+        filtro_tempo = "Todos"
 
-# ===================== CONTEÚDO (COM MARGEM) =====================
-st.markdown(f'<div class="{main_class}">', unsafe_allow_html=True)
+    st.markdown('</div>', unsafe_allow_html=True)
 
-dados_view = dados_calc.copy()
-if filtro_nome:
-    dados_view = dados_view[dados_view["NOME"].astype(str).str.contains(filtro_nome, case=False, na=False)]
-if filtro_cidade != "Todas" and "CIDADE" in dados_view.columns:
-    dados_view = dados_view[dados_view["CIDADE"] == filtro_cidade]
-if filtro_tempo != "Todos" and "TEMPO DE CASA" in dados_view.columns:
-    dados_view = dados_view[dados_view["TEMPO DE CASA"] == filtro_tempo]
-dados_view = dados_view.sort_values(by="%", ascending=False)
+# ===================== CONTEÚDO =====================
+with col_main:
+    dados_view = dados_calc.copy()
 
-periodo_label = "Trimestre" if filtro_mes == "TRIMESTRE" else filtro_mes
+    if filtro_nome:
+        dados_view = dados_view[dados_view["NOME"].astype(str).str.contains(filtro_nome, case=False, na=False)]
+    if filtro_cidade != "Todas" and "CIDADE" in dados_view.columns:
+        dados_view = dados_view[dados_view["CIDADE"] == filtro_cidade]
+    if filtro_tempo != "Todos" and "TEMPO DE CASA" in dados_view.columns:
+        dados_view = dados_view[dados_view["TEMPO DE CASA"] == filtro_tempo]
 
-st.markdown(
-    f"""
+    dados_view = dados_view.sort_values(by="%", ascending=False)
+
+    periodo_label = "Trimestre" if filtro_mes == "TRIMESTRE" else filtro_mes
+
+    st.markdown(
+        f"""
 <div>
   <div class="page-title">Relatório de Bônus</div>
   <div class="page-sub">Visão consolidada de <b>{periodo_label}</b></div>
 </div>
 """,
-    unsafe_allow_html=True,
-)
-
-total_possivel = float(dados_view["META"].sum()) if "META" in dados_view.columns else 0.0
-recebido = float(dados_view["RECEBIDO"].sum()) if "RECEBIDO" in dados_view.columns else 0.0
-perda = float(dados_view["PERDA"].sum()) if "PERDA" in dados_view.columns else 0.0
-qtd = len(dados_view)
-
-render_kpis(total_possivel, recebido, perda, qtd)
-
-left, right = st.columns([1.05, 1.25], gap="large")
-
-with left:
-    st.markdown('<div class="section">', unsafe_allow_html=True)
-    st.markdown('<div class="section-title">📌 Resumo</div>', unsafe_allow_html=True)
-
-    cumprimento_medio = 0.0 if total_possivel == 0 else (recebido / total_possivel) * 100.0
-    resumo = pd.DataFrame(
-        {"Item":["Total possível","Recebido","Deixou de ganhar","Cumprimento médio"],
-         "Valor":[brl(total_possivel), brl(recebido), brl(perda), f"{cumprimento_medio:.1f}%"]}
+        unsafe_allow_html=True,
     )
-    st.dataframe(resumo, use_container_width=True, hide_index=True)
 
-    top = dados_view.head(5).copy()
-    cols_top = [c for c in ["NOME","CIDADE","%","RECEBIDO","PERDA"] if c in top.columns]
-    top = top[cols_top]
-    if "%" in top.columns: top["%"] = top["%"].apply(lambda x: f"{float(x):.1f}%")
-    if "RECEBIDO" in top.columns: top["RECEBIDO"] = top["RECEBIDO"].apply(brl)
-    if "PERDA" in top.columns: top["PERDA"] = top["PERDA"].apply(brl)
-    if "CIDADE" in top.columns: top["CIDADE"] = top["CIDADE"].astype(str).str.title()
+    total_possivel = float(dados_view["META"].sum()) if "META" in dados_view.columns else 0.0
+    recebido = float(dados_view["RECEBIDO"].sum()) if "RECEBIDO" in dados_view.columns else 0.0
+    perda = float(dados_view["PERDA"].sum()) if "PERDA" in dados_view.columns else 0.0
+    qtd = len(dados_view)
 
-    st.markdown('<div style="height:10px"></div>', unsafe_allow_html=True)
-    st.markdown('<div class="section-title">🏆 Top 5</div>', unsafe_allow_html=True)
-    st.dataframe(top, use_container_width=True, hide_index=True)
+    render_kpis(total_possivel, recebido, perda, qtd)
 
-    st.markdown('</div>', unsafe_allow_html=True)
+    left, right = st.columns([1.05, 1.25], gap="large")
 
-with right:
-    st.markdown('<div class="section">', unsafe_allow_html=True)
-    st.markdown('<div class="section-title">👥 Analistas</div>', unsafe_allow_html=True)
+    with left:
+        st.markdown('<div class="section">', unsafe_allow_html=True)
+        st.markdown('<div class="section-title">Resumo</div>', unsafe_allow_html=True)
 
-    cols_cards = st.columns(2, gap="medium")
-    for idx, (_, row) in enumerate(dados_view.iterrows()):
-        pct = float(row.get("%", 0) or 0)
-        meta = float(row.get("META", 0) or 0)
-        rec = float(row.get("RECEBIDO", 0) or 0)
-        per = float(row.get("PERDA", 0) or 0)
+        cumprimento_medio = 0.0 if total_possivel == 0 else (recebido / total_possivel) * 100.0
+        resumo = pd.DataFrame(
+            {"Item":["Total possível","Recebido","Deixou de ganhar","Cumprimento médio"],
+             "Valor":[brl(total_possivel), brl(recebido), brl(perda), f"{cumprimento_medio:.1f}%"]}
+        )
+        st.dataframe(resumo, use_container_width=True, hide_index=True)
 
-        nome = str(row.get("NOME", "")).title()
-        cidade = str(row.get("CIDADE", "")).title() if "CIDADE" in dados_view.columns else ""
-        tempo = str(row.get("TEMPO DE CASA", "")).strip() if "TEMPO DE CASA" in dados_view.columns else ""
+        top = dados_view.head(5).copy()
+        cols_top = [c for c in ["NOME","CIDADE","%","RECEBIDO","PERDA"] if c in top.columns]
+        top = top[cols_top]
+        if "%" in top.columns: top["%"] = top["%"].apply(lambda x: f"{float(x):.1f}%")
+        if "RECEBIDO" in top.columns: top["RECEBIDO"] = top["RECEBIDO"].apply(brl)
+        if "PERDA" in top.columns: top["PERDA"] = top["PERDA"].apply(brl)
+        if "CIDADE" in top.columns: top["CIDADE"] = top["CIDADE"].astype(str).str.title()
 
-        obs = texto_obs(row.get("_obs", row.get("OBSERVAÇÃO", "")))
-        perdidos_txt = texto_obs(row.get("INDICADORES_NAO_ENTREGUES", ""))
+        st.markdown('<div style="height:10px"></div>', unsafe_allow_html=True)
+        st.markdown('<div class="section-title">Top 5</div>', unsafe_allow_html=True)
+        st.dataframe(top, use_container_width=True, hide_index=True)
 
-        tag = "Excelente" if pct >= 95 else ("Atenção" if pct < 80 else "Ok")
-        meta_line = f"Analista — {cidade}" if cidade else "Analista"
-        if tempo: meta_line = f"{meta_line} • {tempo}"
+        st.markdown('</div>', unsafe_allow_html=True)
 
-        with cols_cards[idx % 2]:
-            st.markdown(
-                f"""
+    with right:
+        st.markdown('<div class="section">', unsafe_allow_html=True)
+        st.markdown('<div class="section-title">Analistas</div>', unsafe_allow_html=True)
+
+        cols_cards = st.columns(2, gap="medium")
+        for idx, (_, row) in enumerate(dados_view.iterrows()):
+            pct = float(row.get("%", 0) or 0)
+            meta = float(row.get("META", 0) or 0)
+            rec = float(row.get("RECEBIDO", 0) or 0)
+            per = float(row.get("PERDA", 0) or 0)
+
+            nome = str(row.get("NOME", "")).title()
+            cidade = str(row.get("CIDADE", "")).title() if "CIDADE" in dados_view.columns else ""
+            tempo = str(row.get("TEMPO DE CASA", "")).strip() if "TEMPO DE CASA" in dados_view.columns else ""
+
+            obs = texto_obs(row.get("_obs", row.get("OBSERVAÇÃO", "")))
+            perdidos_txt = texto_obs(row.get("INDICADORES_NAO_ENTREGUES", ""))
+
+            tag = "Excelente" if pct >= 95 else ("Atenção" if pct < 80 else "Ok")
+            meta_line = f"Analista — {cidade}" if cidade else "Analista"
+            if tempo: meta_line = f"{meta_line} • {tempo}"
+
+            with cols_cards[idx % 2]:
+                st.markdown(
+                    f"""
 <div class="person-card">
   <p class="person-name">{nome}</p>
   <div class="person-meta">{meta_line}</div>
@@ -644,9 +619,7 @@ with right:
   {"<div style='height:8px'></div><div class='muted'>Obs.: "+obs+"</div>" if obs else ""}
 </div>
 """,
-                unsafe_allow_html=True,
-            )
+                    unsafe_allow_html=True,
+                )
 
-    st.markdown('</div>', unsafe_allow_html=True)
-
-st.markdown("</div>", unsafe_allow_html=True)  # fecha main-wrap
+        st.markdown('</div>', unsafe_allow_html=True)
