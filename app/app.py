@@ -1,9 +1,10 @@
 # -*- coding: utf-8 -*-
 # ============================================================
 # Painel de Bônus (T1) | ANALISTAS
-# - Login com usuário/senha via Streamlit Secrets (sem expor no GitHub)
-# - Login centralizado + ícone + mensagem inválida
-# - Sidebar azul FIXA (sem recolher)
+# - Sidebar azul (NATIVA) FIXA (SEM recolher / sem setinha)
+# - Filtros na sidebar
+# - Corrige erro do pandas (__iadd__) usando += normal
+# - Corrige cortes nos cards (pills em bloco, quebram linha)
 # ============================================================
 
 import streamlit as st
@@ -12,200 +13,14 @@ import json
 from pathlib import Path
 import unicodedata
 import re
-import hmac
-import hashlib
 
-# ===================== CONFIG (TEM QUE SER A 1ª CHAMADA) =====================
+# ===================== CONFIG =====================
 st.set_page_config(
     page_title="Painel de Bônus (T1) | Analistas",
     layout="wide",
-    initial_sidebar_state="expanded",
+    initial_sidebar_state="expanded",  # garante aberta ao carregar
 )
 
-# ===================== LOGIN (SECRETS) =====================
-def _sha256(s: str) -> str:
-    return hashlib.sha256(s.encode("utf-8")).hexdigest()
-
-def _get_users_from_secrets() -> dict:
-    """
-    Aceita os dois formatos:
-    1) [auth.users] "email"="senha"
-       -> st.secrets["auth"]["users"]
-    2) [auth]
-         users = { "email"="senha" }
-       -> st.secrets["auth"]["users"]
-    E também tenta fallback se vier "achatado" (menos comum).
-    """
-    # caso padrão (nested)
-    auth = st.secrets.get("auth", None)
-    if isinstance(auth, dict) and isinstance(auth.get("users", None), dict):
-        return auth["users"]
-
-    # fallback raro: chave achatada "auth.users"
-    flat = st.secrets.get("auth.users", None)
-    if isinstance(flat, dict):
-        return flat
-
-    # se nada existir
-    return {}
-
-def _verify_user(email: str, password: str, users: dict) -> bool:
-    """
-    Suporta senha em texto puro OU hash sha256 (64 hex).
-    - Se no secrets estiver "123456", compara direto.
-    - Se estiver sha256, compara hash.
-    """
-    stored = users.get(email, "")
-    if not stored:
-        return False
-
-    stored = str(stored).strip()
-    pwd = str(password or "").strip()
-
-    # se parecer hash sha256 (64 hex), valida por hash
-    is_sha = len(stored) == 64 and all(c in "0123456789abcdef" for c in stored.lower())
-    if is_sha:
-        return hmac.compare_digest(stored.lower(), _sha256(pwd).lower())
-
-    # senha em texto puro
-    return hmac.compare_digest(stored, pwd)
-
-def tela_login():
-    users = _get_users_from_secrets()
-
-    st.markdown(
-        """
-        <style>
-        /* página limpa */
-        #MainMenu {visibility: hidden;}
-        footer {visibility: hidden;}
-
-        .login-page{
-            min-height: calc(100vh - 40px);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            background: #f5f7fb;
-            padding: 24px 12px;
-        }
-        .login-card{
-            width: 100%;
-            max-width: 420px;
-            background: #ffffff;
-            border-radius: 18px;
-            padding: 34px 30px;
-            box-shadow: 0 20px 55px rgba(15,23,42,.12);
-            border: 1px solid rgba(15,23,42,.06);
-        }
-        .login-top{
-            text-align:center;
-            margin-bottom: 18px;
-        }
-        .login-icon{
-            width:66px;
-            height:66px;
-            border-radius:18px;
-            background: linear-gradient(135deg, #2563eb, #1d4ed8);
-            display:inline-flex;
-            align-items:center;
-            justify-content:center;
-            font-size:30px;
-            color:white;
-            font-weight:900;
-            box-shadow: 0 14px 30px rgba(37,99,235,.28);
-            margin-bottom: 12px;
-        }
-        .login-title{
-            font-size: 1.35rem;
-            font-weight: 900;
-            color: #0f172a;
-            margin: 0;
-            line-height: 1.2;
-        }
-        .login-sub{
-            font-size: .92rem;
-            color: #64748b;
-            margin-top: 6px;
-        }
-        .hint{
-            margin-top: 12px;
-            font-size: .82rem;
-            color: #64748b;
-            text-align:center;
-        }
-        </style>
-        """,
-        unsafe_allow_html=True,
-    )
-
-    st.markdown('<div class="login-page">', unsafe_allow_html=True)
-    st.markdown('<div class="login-card">', unsafe_allow_html=True)
-
-    st.markdown(
-        """
-        <div class="login-top">
-          <div class="login-icon">🔐</div>
-          <p class="login-title">Bem-vindo de volta!</p>
-          <div class="login-sub">Entre com suas credenciais para acessar o painel</div>
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
-
-    # Se secrets não estiver ok, mostra aviso claro
-    if not users:
-        st.error('Secrets não configurado. Crie [auth.users] em Settings → Secrets.')
-        st.markdown(
-            """
-            <div class="hint">
-            Exemplo (TOML):<br/>
-            <code>[auth.users]</code><br/>
-            <code>"adm@brave" = "123456"</code><br/>
-            <code>"gestor@brave" = "123456"</code>
-            </div>
-            """,
-            unsafe_allow_html=True,
-        )
-        st.markdown("</div></div>", unsafe_allow_html=True)
-        st.stop()
-
-    # inputs
-    email = st.text_input("E-mail", placeholder="seu@email.com")
-    senha = st.text_input("Senha", type="password", placeholder="••••••••")
-
-    col1, col2 = st.columns([1, 1])
-    with col1:
-        entrar = st.button("Entrar", use_container_width=True)
-    with col2:
-        sair = st.button("Limpar", use_container_width=True)
-
-    if sair:
-        st.session_state.pop("logado", None)
-        st.session_state.pop("usuario", None)
-        st.rerun()
-
-    if entrar:
-        if _verify_user(email.strip().lower(), senha, users):
-            st.session_state["logado"] = True
-            st.session_state["usuario"] = email.strip().lower()
-            st.rerun()
-        else:
-            st.error("Usuário ou senha inválidos")
-
-    st.markdown('<div class="hint">Dica: use o e-mail cadastrado no Secrets.</div>', unsafe_allow_html=True)
-
-    st.markdown("</div></div>", unsafe_allow_html=True)
-
-
-# Controle de sessão
-if "logado" not in st.session_state:
-    st.session_state["logado"] = False
-
-if not st.session_state["logado"]:
-    tela_login()
-    st.stop()
-
-# ===================== APP (SEU PAINEL) =====================
 BASE_DIR = Path(__file__).resolve().parent.parent
 DATA_DIR = BASE_DIR / "data"
 
@@ -218,15 +33,18 @@ MESES = ["TRIMESTRE", "JANEIRO", "FEVEREIRO", "MARÇO"]
 st.markdown(
     """
 <style>
-/* Remove menu/footer */
+/* Remove menu/footer (não mexe no header para não bugar o controle) */
 #MainMenu {visibility: hidden;}
 footer {visibility: hidden;}
 
-/* Impedir recolher */
+/* ===== REGRA PRINCIPAL: IMPEDIR RECOLHER =====
+   - Some com o botão/setinha de recolher
+   - Some com o controle de reabrir (porque não vamos permitir recolher)
+*/
 button[title="Collapse sidebar"]{ display:none !important; }
 div[data-testid="collapsedControl"]{ display:none !important; }
 
-/* Sidebar */
+/* ===== SIDEBAR AZUL (NATIVA) ===== */
 section[data-testid="stSidebar"]{
   background: #0b1220;
   border-right: 1px solid rgba(255,255,255,.08);
@@ -237,7 +55,7 @@ section[data-testid="stSidebar"] *{ color: #e5e7eb; }
 section[data-testid="stSidebar"] .stMarkdown p,
 section[data-testid="stSidebar"] .stMarkdown div{ color:#e5e7eb; }
 
-/* Inputs na sidebar */
+/* Inputs do Streamlit na sidebar */
 section[data-testid="stSidebar"] input,
 section[data-testid="stSidebar"] textarea,
 section[data-testid="stSidebar"] div[role="combobox"]{
@@ -250,10 +68,10 @@ section[data-testid="stSidebar"] label{
   font-weight: 800 !important;
 }
 
-/* Layout */
+/* Largura geral */
 .block-container { padding-top: 1.2rem; padding-bottom: 2rem; max-width: 1400px; }
 
-/* Sidebar títulos */
+/* títulos da sidebar */
 .sb-brand{ display:flex; gap:10px; align-items:center; padding: 6px 2px 2px 2px; }
 .sb-logo{
   width: 42px; height: 42px; border-radius: 12px;
@@ -270,7 +88,7 @@ section[data-testid="stSidebar"] label{
 }
 .sb-divider{ height:1px; background: rgba(255,255,255,.10); margin: 14px 0; }
 
-/* Pills menu */
+/* “abas” do menu (estético) */
 .nav-pill{
   border: 1px solid rgba(255,255,255,.10);
   background: rgba(255,255,255,.06);
@@ -284,7 +102,7 @@ section[data-testid="stSidebar"] label{
   border-color: rgba(59,130,246,.45);
 }
 
-/* Header/KPI */
+/* ===== HEADER / KPI ===== */
 .page-title { font-size: 1.75rem; font-weight: 950; line-height: 1.1; margin:0; }
 .page-sub { color: rgba(15,23,42,.60); font-size: .95rem; margin-top: 4px; }
 
@@ -312,7 +130,7 @@ section[data-testid="stSidebar"] label{
 .kpi-value{ font-size:1.55rem; font-weight: 950; margin-top:6px; }
 .kpi-sub{ font-size:.85rem; color: rgba(15,23,42,.55); margin-top:2px; }
 
-/* Seções */
+/* ===== SEÇÕES ===== */
 .section{
   border: 1px solid rgba(15,23,42,.10);
   background: #fff;
@@ -329,7 +147,7 @@ section[data-testid="stSidebar"] label{
   align-items:center;
 }
 
-/* Cards */
+/* ===== CARDS ===== */
 .person-card{
   border:1px solid rgba(15,23,42,.10);
   background:#fff;
@@ -347,6 +165,8 @@ section[data-testid="stSidebar"] label{
   gap:10px;
   margin-top:8px;
 }
+
+/* pills em bloco (não cortam) */
 .pill{
   width:100%;
   background: rgba(15,23,42,.05);
@@ -584,7 +404,7 @@ def montar_base(periodo: str) -> pd.DataFrame:
             ignore_index=True
         )
 
-        group_cols = [c for c in ["EMPRESA", "NOME", "FUNÇÃO", "DATA DE ADMISSÃO", "TEMPO DE CASA"] if c in full.columns]
+        group_cols = [c for c in ["CIDADE", "NOME", "FUNÇÃO", "DATA DE ADMISSÃO", "TEMPO DE CASA"] if c in full.columns]
         if not group_cols:
             group_cols = ["NOME", "FUNÇÃO"]
 
@@ -621,7 +441,7 @@ def montar_base(periodo: str) -> pd.DataFrame:
     )
     return out
 
-# ===================== SIDEBAR =====================
+# ===================== SIDEBAR (AZUL, COM ABAS + FILTROS) =====================
 with st.sidebar:
     st.markdown(
         """
@@ -638,7 +458,12 @@ with st.sidebar:
         unsafe_allow_html=True,
     )
 
-    pagina = st.radio("Navegação", ["Dashboard", "Relatório"], index=1, label_visibility="collapsed")
+    pagina = st.radio(
+        "Navegação",
+        ["Dashboard", "Relatório"],
+        index=1,
+        label_visibility="collapsed"
+    )
 
     st.markdown(
         f"""
@@ -655,38 +480,33 @@ with st.sidebar:
     dados_calc = montar_base(filtro_mes)
     dados_calc = dados_calc[dados_calc["FUNÇÃO"].astype(str).apply(up) == up("ANALISTA")].copy()
 
-    EMPRESAs = ["Todas"] + (sorted([c for c in dados_calc["EMPRESA"].dropna().unique()]) if "EMPRESA" in dados_calc.columns else [])
+    cidades = ["Todas"] + (sorted([c for c in dados_calc["CIDADE"].dropna().unique()]) if "CIDADE" in dados_calc.columns else [])
     tempos = ["Todos"] + (sorted([t for t in dados_calc["TEMPO DE CASA"].dropna().unique()]) if "TEMPO DE CASA" in dados_calc.columns else [])
 
     with st.form("filtros_form", clear_on_submit=False):
         filtro_nome = st.text_input("Buscar por nome", value=st.session_state.get("f_nome", ""))
-        filtro_EMPRESA = st.selectbox("EMPRESA", EMPRESAs, index=0)
+        filtro_cidade = st.selectbox("Cidade", cidades, index=0)
         filtro_tempo = st.selectbox("Tempo de casa", tempos, index=0)
         aplicar = st.form_submit_button("Aplicar filtros")
     if aplicar:
         st.session_state["f_nome"] = filtro_nome
 
-    st.markdown('<div class="sb-divider"></div>', unsafe_allow_html=True)
     st.markdown(
-        f"""
+        """
+<div class="sb-divider"></div>
 <div style="opacity:.85;font-weight:900;font-size:.80rem;">Logado como</div>
-<div style="font-weight:950;margin-top:2px;">{st.session_state.get("usuario","")}</div>
+<div style="font-weight:950;margin-top:2px;">analistas@brave</div>
 """,
         unsafe_allow_html=True,
     )
-
-    if st.button("Sair", use_container_width=True):
-        st.session_state["logado"] = False
-        st.session_state.pop("usuario", None)
-        st.rerun()
 
 # ===================== CONTEÚDO =====================
 dados_view = dados_calc.copy()
 
 if filtro_nome:
     dados_view = dados_view[dados_view["NOME"].astype(str).str.contains(filtro_nome, case=False, na=False)]
-if filtro_EMPRESA != "Todas" and "EMPRESA" in dados_view.columns:
-    dados_view = dados_view[dados_view["EMPRESA"] == filtro_EMPRESA]
+if filtro_cidade != "Todas" and "CIDADE" in dados_view.columns:
+    dados_view = dados_view[dados_view["CIDADE"] == filtro_cidade]
 if filtro_tempo != "Todos" and "TEMPO DE CASA" in dados_view.columns:
     dados_view = dados_view[dados_view["TEMPO DE CASA"] == filtro_tempo]
 
@@ -727,7 +547,7 @@ with left:
     st.dataframe(resumo, use_container_width=True, hide_index=True)
 
     top = dados_view.head(5).copy()
-    cols_top = [c for c in ["NOME", "EMPRESA", "%", "RECEBIDO", "PERDA"] if c in top.columns]
+    cols_top = [c for c in ["NOME", "CIDADE", "%", "RECEBIDO", "PERDA"] if c in top.columns]
     top = top[cols_top]
     if "%" in top.columns:
         top["%"] = top["%"].apply(lambda x: f"{float(x):.1f}%")
@@ -735,8 +555,8 @@ with left:
         top["RECEBIDO"] = top["RECEBIDO"].apply(brl)
     if "PERDA" in top.columns:
         top["PERDA"] = top["PERDA"].apply(brl)
-    if "EMPRESA" in top.columns:
-        top["EMPRESA"] = top["EMPRESA"].astype(str).str.title()
+    if "CIDADE" in top.columns:
+        top["CIDADE"] = top["CIDADE"].astype(str).str.title()
 
     st.markdown('<div style="height:10px"></div>', unsafe_allow_html=True)
     st.markdown('<div class="section-title">🏆 Top 5</div>', unsafe_allow_html=True)
@@ -757,14 +577,14 @@ with right:
         per = float(row.get("PERDA", 0) or 0)
 
         nome = str(row.get("NOME", "")).title()
-        EMPRESA = str(row.get("EMPRESA", "")).title() if "EMPRESA" in dados_view.columns else ""
+        cidade = str(row.get("CIDADE", "")).title() if "CIDADE" in dados_view.columns else ""
         tempo = str(row.get("TEMPO DE CASA", "")).strip() if "TEMPO DE CASA" in dados_view.columns else ""
 
         obs = texto_obs(row.get("_obs", row.get("OBSERVAÇÃO", "")))
         perdidos_txt = texto_obs(row.get("INDICADORES_NAO_ENTREGUES", ""))
 
         tag = "Excelente" if pct >= 95 else ("Atenção" if pct < 80 else "Ok")
-        meta_line = f"Analista — {EMPRESA}" if EMPRESA else "Analista"
+        meta_line = f"Analista — {cidade}" if cidade else "Analista"
         if tempo:
             meta_line = f"{meta_line} • {tempo}"
 
