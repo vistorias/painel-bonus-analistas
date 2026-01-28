@@ -2,9 +2,9 @@
 # ============================================================
 # Painel de Bônus (T1) | ANALISTAS
 # - Sidebar azul (NATIVA) FIXA (SEM recolher / sem setinha)
-# - Filtros na sidebar
-# - Login com trava por EMPRESA (cada analista vê só a própria)
-# - Admin (empresa_user vazio) vê tudo
+# - Login via secrets
+# - Cada usuário vê SOMENTE o próprio registro (por coluna EMAIL na planilha)
+# - Admin (lista em secrets) vê todos
 # ============================================================
 
 import streamlit as st
@@ -79,19 +79,6 @@ section[data-testid="stSidebar"] label{
   margin: 16px 0 10px 0;
 }
 .sb-divider{ height:1px; background: rgba(255,255,255,.10); margin: 14px 0; }
-
-.nav-pill{
-  border: 1px solid rgba(255,255,255,.10);
-  background: rgba(255,255,255,.06);
-  padding: 10px 12px;
-  border-radius: 12px;
-  font-weight: 900;
-  margin-bottom: 8px;
-}
-.nav-pill.active{
-  background: rgba(59,130,246,.22);
-  border-color: rgba(59,130,246,.45);
-}
 
 .page-title { font-size: 1.75rem; font-weight: 950; line-height: 1.1; margin:0; }
 .page-sub { color: rgba(15,23,42,.60); font-size: .95rem; margin-top: 4px; }
@@ -179,108 +166,6 @@ section[data-testid="stSidebar"] label{
     unsafe_allow_html=True,
 )
 
-# ===================== LOGIN (NATIVO, ESTÁVEL) =====================
-
-def _safe_eq(a: str, b: str) -> bool:
-    return hmac.compare_digest(a.encode("utf-8"), b.encode("utf-8"))
-
-def get_usuarios():
-    try:
-        return dict(st.secrets["auth"]["users"])
-    except Exception:
-        return {
-            "analistas@brave": "brave123",
-            "wendell_bnascimento@outlook.com": "123456",
-        }
-
-def get_mapa_empresas():
-    # empresa vazia => ADMIN (vê tudo)
-    try:
-        return dict(st.secrets["auth_empresa"]["map"])
-    except Exception:
-        return {
-            "analistas@brave": "",  # admin
-        }
-
-USUARIOS = get_usuarios()
-MAPA_EMP = get_mapa_empresas()
-
-def autenticar(email: str, senha: str) -> bool:
-    email = (email or "").strip().lower()
-    senha = (senha or "").strip()
-    if email not in USUARIOS:
-        return False
-    return _safe_eq(str(USUARIOS[email]), senha)
-
-def tela_login():
-    st.markdown(
-        """
-<style>
-section[data-testid="stSidebar"]{ display:none !important; }
-div.block-container{ max-width: 900px !important; padding-top: 0.5rem !important; }
-</style>
-        """,
-        unsafe_allow_html=True,
-    )
-
-    st.markdown("<div style='height:18vh'></div>", unsafe_allow_html=True)
-
-    c1, c2, c3 = st.columns([1, 1.4, 1])
-    with c2:
-        st.markdown(
-            """
-<div style="
-  border:1px solid rgba(15,23,42,.10);
-  border-radius:18px;
-  box-shadow:0 14px 40px rgba(15,23,42,.10);
-  padding:26px 26px 18px 26px;
-  background:#fff;
-  text-align:center;">
-  <div style="
-    width:58px;height:58px;border-radius:16px;
-    margin:0 auto 10px auto;
-    background:rgba(59,130,246,.12);
-    border:1px solid rgba(59,130,246,.20);
-    display:flex;align-items:center;justify-content:center;
-    font-size:26px;font-weight:950;">📄</div>
-  <div style="font-size:1.35rem;font-weight:950;">Bem-vindo de volta!</div>
-  <div style="margin-top:6px;color:rgba(15,23,42,.60);font-size:.95rem;">
-    Entre com suas credenciais para acessar o sistema
-  </div>
-</div>
-            """,
-            unsafe_allow_html=True,
-        )
-
-        st.markdown("<div style='height:10px'></div>", unsafe_allow_html=True)
-
-        with st.form("login_form", clear_on_submit=False):
-            email = st.text_input("E-mail", value=st.session_state.get("login_email", ""))
-            senha = st.text_input("Senha", type="password")
-            entrar = st.form_submit_button("Entrar", use_container_width=True)
-
-        if entrar:
-            if autenticar(email, senha):
-                email_ok = (email or "").strip().lower()
-                st.session_state["autenticado"] = True
-                st.session_state["login_email"] = email_ok
-                st.session_state["empresa_user"] = (MAPA_EMP.get(email_ok, "") or "").strip().upper()
-                st.rerun()
-            else:
-                st.session_state["autenticado"] = False
-                st.error("Credenciais inválidas.")
-
-        st.markdown(
-            "<div style='text-align:center;color:rgba(15,23,42,.55);font-size:.90rem;margin-top:10px;'>"
-            "<div>Esqueci minha senha</div><div style='margin-top:6px;'>Não tem conta? Cadastre-se</div></div>",
-            unsafe_allow_html=True,
-        )
-
-# gate
-if not st.session_state.get("autenticado", False):
-    tela_login()
-    st.stop()
-
 # ===================== HELPERS =====================
 def norm_txt(s: str) -> str:
     if s is None or (isinstance(s, float) and pd.isna(s)):
@@ -293,6 +178,9 @@ def norm_txt(s: str) -> str:
 
 def up(s):
     return norm_txt(s)
+
+def norm_email(s: str) -> str:
+    return (str(s or "").strip().lower())
 
 def texto_obs(valor):
     if valor is None or (isinstance(valor, float) and pd.isna(valor)):
@@ -375,6 +263,102 @@ def render_kpis(total_possivel, recebido, perda, qtd):
         unsafe_allow_html=True,
     )
 
+# ===================== LOGIN =====================
+def _safe_eq(a: str, b: str) -> bool:
+    return hmac.compare_digest(a.encode("utf-8"), b.encode("utf-8"))
+
+def get_usuarios():
+    try:
+        return dict(st.secrets["auth"]["users"])
+    except Exception:
+        # fallback local
+        return {
+            "analistas@brave": "brave123",
+        }
+
+def get_admins():
+    try:
+        admins = st.secrets.get("auth_admin", {}).get("admins", [])
+        return [norm_email(x) for x in admins]
+    except Exception:
+        return []
+
+USUARIOS = {norm_email(k): str(v) for k, v in get_usuarios().items()}
+ADMINS = set(get_admins())
+
+def autenticar(email: str, senha: str) -> bool:
+    email = norm_email(email)
+    senha = (senha or "").strip()
+    if email not in USUARIOS:
+        return False
+    return _safe_eq(str(USUARIOS[email]), senha)
+
+def tela_login():
+    st.markdown(
+        """
+<style>
+section[data-testid="stSidebar"]{ display:none !important; }
+div.block-container{ max-width: 900px !important; padding-top: 0.5rem !important; }
+</style>
+        """,
+        unsafe_allow_html=True,
+    )
+
+    st.markdown("<div style='height:18vh'></div>", unsafe_allow_html=True)
+
+    c1, c2, c3 = st.columns([1, 1.4, 1])
+    with c2:
+        st.markdown(
+            """
+<div style="
+  border:1px solid rgba(15,23,42,.10);
+  border-radius:18px;
+  box-shadow:0 14px 40px rgba(15,23,42,.10);
+  padding:26px 26px 18px 26px;
+  background:#fff;
+  text-align:center;">
+  <div style="
+    width:58px;height:58px;border-radius:16px;
+    margin:0 auto 10px auto;
+    background:rgba(59,130,246,.12);
+    border:1px solid rgba(59,130,246,.20);
+    display:flex;align-items:center;justify-content:center;
+    font-size:26px;font-weight:950;">📄</div>
+  <div style="font-size:1.35rem;font-weight:950;">Bem-vindo de volta!</div>
+  <div style="margin-top:6px;color:rgba(15,23,42,.60);font-size:.95rem;">
+    Entre com suas credenciais para acessar o sistema
+  </div>
+</div>
+            """,
+            unsafe_allow_html=True,
+        )
+
+        st.markdown("<div style='height:10px'></div>", unsafe_allow_html=True)
+
+        with st.form("login_form", clear_on_submit=False):
+            email = st.text_input("E-mail", value=st.session_state.get("login_email", ""))
+            senha = st.text_input("Senha", type="password")
+            entrar = st.form_submit_button("Entrar", use_container_width=True)
+
+        if entrar:
+            if autenticar(email, senha):
+                email_ok = norm_email(email)
+                st.session_state["autenticado"] = True
+                st.session_state["login_email"] = email_ok
+                st.session_state["is_admin"] = (email_ok in ADMINS)
+                st.rerun()
+            else:
+                st.session_state["autenticado"] = False
+                st.error("Credenciais inválidas.")
+
+# gate
+if not st.session_state.get("autenticado", False):
+    tela_login()
+    st.stop()
+
+LOGIN_EMAIL = norm_email(st.session_state.get("login_email", ""))
+IS_ADMIN = bool(st.session_state.get("is_admin", False))
+
 # ===================== DADOS ======================
 try:
     PESOS = load_json(PESOS_PATH)
@@ -392,6 +376,7 @@ def ler_planilha(mes: str) -> pd.DataFrame:
     return pd.read_excel(sorted(candidatos)[0], sheet_name=mes)
 
 COLS_OBRIG = [
+    "EMAIL",  # <- NOVO (obrigatório)
     "NOME", "FUNÇÃO", "VALOR MENSAL META",
     "BATEU_PRODUCAO", "BATEU_TMG_GERAL", "BATEU_TMA_ANALISTA", "BATEU_TEMPO_FILA", "BATEU_CONFORMIDADE"
 ]
@@ -399,13 +384,20 @@ COLS_OBRIG = [
 def checar_colunas(df: pd.DataFrame, mes: str):
     faltando = [c for c in COLS_OBRIG if c not in df.columns]
     if faltando:
-        st.error(f"Na aba {mes}, faltam colunas obrigatórias: {', '.join(faltando)}")
+        st.error(
+            f"Na aba {mes}, faltam colunas obrigatórias: {', '.join(faltando)}.\n"
+            f"Você precisa criar a coluna EMAIL e preencher com o e-mail de cada analista."
+        )
         st.stop()
 
 def calcula_mes(df_mes: pd.DataFrame, nome_mes: str) -> pd.DataFrame:
     df = df_mes.copy()
     checar_colunas(df, nome_mes)
 
+    # normaliza email
+    df["EMAIL"] = df["EMAIL"].apply(norm_email)
+
+    # filtra função analista
     df = df[df["FUNÇÃO"].astype(str).apply(up) == up("ANALISTA")].copy()
 
     metainfo = PESOS.get(up("ANALISTA"), {})
@@ -433,7 +425,8 @@ def calcula_mes(df_mes: pd.DataFrame, nome_mes: str) -> pd.DataFrame:
 
             if item_norm in [up("PRODUÇÃO"), up("PRODUCAO")]:
                 bateu = bool_safe(row.get("BATEU_PRODUCAO"), True)
-                if bateu: recebido += parcela
+                if bateu:
+                    recebido += parcela
                 else:
                     perdas += parcela
                     perdeu_itens.append("Produção")
@@ -441,7 +434,8 @@ def calcula_mes(df_mes: pd.DataFrame, nome_mes: str) -> pd.DataFrame:
 
             if item_norm in [up("TEMPO MÉDIO GERAL DE ANÁLISE"), up("TEMPO MEDIO GERAL DE ANALISE")]:
                 bateu = bool_safe(row.get("BATEU_TMG_GERAL"), True)
-                if bateu: recebido += parcela
+                if bateu:
+                    recebido += parcela
                 else:
                     perdas += parcela
                     perdeu_itens.append("Tempo Médio Geral de Análise")
@@ -449,7 +443,8 @@ def calcula_mes(df_mes: pd.DataFrame, nome_mes: str) -> pd.DataFrame:
 
             if item_norm in [up("TEMPO MÉDIO DE ANÁLISE DO ANALISTA"), up("TEMPO MEDIO DE ANALISE DO ANALISTA")]:
                 bateu = bool_safe(row.get("BATEU_TMA_ANALISTA"), True)
-                if bateu: recebido += parcela
+                if bateu:
+                    recebido += parcela
                 else:
                     perdas += parcela
                     perdeu_itens.append("Tempo Médio do Analista")
@@ -457,7 +452,8 @@ def calcula_mes(df_mes: pd.DataFrame, nome_mes: str) -> pd.DataFrame:
 
             if item_norm in [up("TEMPO MÉDIO DA FILA"), up("TEMPO MEDIO DA FILA")]:
                 bateu = bool_safe(row.get("BATEU_TEMPO_FILA"), True)
-                if bateu: recebido += parcela
+                if bateu:
+                    recebido += parcela
                 else:
                     perdas += parcela
                     perdeu_itens.append("Tempo Médio da Fila")
@@ -465,7 +461,8 @@ def calcula_mes(df_mes: pd.DataFrame, nome_mes: str) -> pd.DataFrame:
 
             if item_norm == up("CONFORMIDADE"):
                 bateu = bool_safe(row.get("BATEU_CONFORMIDADE"), True)
-                if bateu: recebido += parcela
+                if bateu:
+                    recebido += parcela
                 else:
                     perdas += parcela
                     perdeu_itens.append("Conformidade")
@@ -493,19 +490,21 @@ def montar_base(periodo: str) -> pd.DataFrame:
             ignore_index=True
         )
 
-        group_cols = [c for c in ["EMPRESA", "NOME", "FUNÇÃO", "DATA DE ADMISSÃO", "TEMPO DE CASA"] if c in full.columns]
+        # EMAIL entra no agrupamento para garantir “um usuário = um registro”
+        group_cols = [c for c in ["EMAIL", "EMPRESA", "NOME", "FUNÇÃO", "DATA DE ADMISSÃO", "TEMPO DE CASA"] if c in full.columns]
         if not group_cols:
-            group_cols = ["NOME", "FUNÇÃO"]
+            group_cols = ["EMAIL", "NOME", "FUNÇÃO"]
 
         agg = (full.groupby(group_cols, dropna=False)
                .agg({
-                    "META":"sum",
-                    "RECEBIDO":"sum",
-                    "PERDA":"sum",
+                    "META": "sum",
+                    "RECEBIDO": "sum",
+                    "PERDA": "sum",
                     "_obs": lambda x: ", ".join(sorted({s for s in x if s})),
                     "_badge": lambda x: " / ".join(sorted({s for s in x if s}))
                })
                .reset_index())
+
         agg["%"] = agg.apply(lambda r: 0.0 if r["META"] == 0 else (r["RECEBIDO"] / r["META"]) * 100.0, axis=1)
 
         perdas_pessoa = (
@@ -530,7 +529,7 @@ def montar_base(periodo: str) -> pd.DataFrame:
     )
     return out
 
-# ===================== SIDEBAR (AZUL, COM ABAS + FILTROS) =====================
+# ===================== SIDEBAR =====================
 with st.sidebar:
     st.markdown(
         """
@@ -542,64 +541,37 @@ with st.sidebar:
   </div>
 </div>
 <div class="sb-divider"></div>
-<div class="sb-section-title">MENU PRINCIPAL</div>
+<div class="sb-section-title">FILTROS</div>
 """,
         unsafe_allow_html=True,
     )
-
-    pagina = st.radio(
-        "Navegação",
-        ["Dashboard", "Relatório"],
-        index=1,
-        label_visibility="collapsed"
-    )
-
-    st.markdown(
-        f"""
-<div class="nav-pill {'active' if pagina=='Dashboard' else ''}">🏠 Dashboard</div>
-<div class="nav-pill {'active' if pagina=='Relatório' else ''}">📄 Relatório</div>
-""",
-        unsafe_allow_html=True,
-    )
-
-    st.markdown('<div class="sb-divider"></div><div class="sb-section-title">FILTROS</div>', unsafe_allow_html=True)
 
     filtro_mes = st.radio("Período", MESES, index=0, key="periodo")
 
     dados_calc = montar_base(filtro_mes)
     dados_calc = dados_calc[dados_calc["FUNÇÃO"].astype(str).apply(up) == up("ANALISTA")].copy()
 
-    # ===== trava por empresa do usuário (se não for admin) =====
-    empresa_user = (st.session_state.get("empresa_user", "") or "").strip().upper()
-    if empresa_user and "EMPRESA" in dados_calc.columns:
-        dados_calc = dados_calc[dados_calc["EMPRESA"].astype(str).apply(up) == up(empresa_user)].copy()
+    # trava por usuário (EMAIL)
+    if not IS_ADMIN:
+        dados_calc = dados_calc[dados_calc["EMAIL"].astype(str).apply(norm_email) == LOGIN_EMAIL].copy()
 
-    EMPRESAs = ["Todas"] + (sorted([c for c in dados_calc["EMPRESA"].dropna().unique()]) if "EMPRESA" in dados_calc.columns else [])
-    tempos = ["Todos"] + (sorted([t for t in dados_calc["TEMPO DE CASA"].dropna().unique()]) if "TEMPO DE CASA" in dados_calc.columns else [])
+    # filtros extras só para admin (porque usuário comum só tem 1 registro)
+    filtro_nome = ""
+    filtro_empresa = "Todas"
+    if IS_ADMIN:
+        st.markdown('<div class="sb-divider"></div><div class="sb-section-title">ADMIN</div>', unsafe_allow_html=True)
+        filtro_nome = st.text_input("Buscar por nome", value="")
 
-    with st.form("filtros_form", clear_on_submit=False):
-        filtro_nome = st.text_input("Buscar por nome", value=st.session_state.get("f_nome", ""))
+        if "EMPRESA" in dados_calc.columns:
+            empresas = ["Todas"] + sorted([str(x) for x in dados_calc["EMPRESA"].dropna().unique()])
+            filtro_empresa = st.selectbox("Empresa", empresas, index=0)
 
-        # trava o filtro de empresa para usuário comum
-        if empresa_user:
-            st.text_input("EMPRESA", value=empresa_user, disabled=True)
-            filtro_EMPRESA = empresa_user
-        else:
-            filtro_EMPRESA = st.selectbox("EMPRESA", EMPRESAs, index=0)
-
-        filtro_tempo = st.selectbox("Tempo de casa", tempos, index=0)
-        aplicar = st.form_submit_button("Aplicar filtros")
-
-    if aplicar:
-        st.session_state["f_nome"] = filtro_nome
-
-    email_logado = st.session_state.get("login_email", "")
     st.markdown(
         f"""
 <div class="sb-divider"></div>
 <div style="opacity:.85;font-weight:900;font-size:.80rem;">Logado como</div>
-<div style="font-weight:950;margin-top:2px;">{email_logado}</div>
-<div style="opacity:.75;font-weight:900;font-size:.78rem;margin-top:4px;">Empresa: {empresa_user or "ADMIN"}</div>
+<div style="font-weight:950;margin-top:2px;">{LOGIN_EMAIL}</div>
+<div style="opacity:.75;font-weight:900;font-size:.78rem;margin-top:4px;">Perfil: {"ADMIN" if IS_ADMIN else "USUÁRIO"}</div>
 """,
         unsafe_allow_html=True,
     )
@@ -607,21 +579,22 @@ with st.sidebar:
     st.markdown('<div class="sb-divider"></div>', unsafe_allow_html=True)
     if st.button("Sair", use_container_width=True):
         st.session_state["autenticado"] = False
-        st.session_state.pop("empresa_user", None)
+        st.session_state.pop("login_email", None)
+        st.session_state.pop("is_admin", None)
         st.rerun()
 
 # ===================== CONTEÚDO =====================
 dados_view = dados_calc.copy()
 
-if filtro_nome:
-    dados_view = dados_view[dados_view["NOME"].astype(str).str.contains(filtro_nome, case=False, na=False)]
+if IS_ADMIN:
+    if filtro_nome:
+        dados_view = dados_view[dados_view["NOME"].astype(str).str.contains(filtro_nome, case=False, na=False)]
+    if ("EMPRESA" in dados_view.columns) and (filtro_empresa != "Todas"):
+        dados_view = dados_view[dados_view["EMPRESA"].astype(str) == filtro_empresa]
 
-# para admin ainda funciona "Todas" / para usuário comum fica travado
-if ("EMPRESA" in dados_view.columns) and (filtro_EMPRESA != "Todas"):
-    dados_view = dados_view[dados_view["EMPRESA"].astype(str).apply(up) == up(filtro_EMPRESA)]
-
-if filtro_tempo != "Todos" and "TEMPO DE CASA" in dados_view.columns:
-    dados_view = dados_view[dados_view["TEMPO DE CASA"] == filtro_tempo]
+if dados_view.empty:
+    st.warning("Nenhum registro encontrado para este usuário/período. Verifique a coluna EMAIL na planilha.")
+    st.stop()
 
 dados_view = dados_view.sort_values(by="%", ascending=False)
 
@@ -659,21 +632,22 @@ with left:
     )
     st.dataframe(resumo, use_container_width=True, hide_index=True)
 
-    top = dados_view.head(5).copy()
-    cols_top = [c for c in ["NOME", "EMPRESA", "%", "RECEBIDO", "PERDA"] if c in top.columns]
-    top = top[cols_top]
-    if "%" in top.columns:
-        top["%"] = top["%"].apply(lambda x: f"{float(x):.1f}%")
-    if "RECEBIDO" in top.columns:
-        top["RECEBIDO"] = top["RECEBIDO"].apply(brl)
-    if "PERDA" in top.columns:
-        top["PERDA"] = top["PERDA"].apply(brl)
-    if "EMPRESA" in top.columns:
-        top["EMPRESA"] = top["EMPRESA"].astype(str).str.title()
+    if IS_ADMIN:
+        top = dados_view.head(5).copy()
+        cols_top = [c for c in ["NOME", "EMPRESA", "%", "RECEBIDO", "PERDA"] if c in top.columns]
+        top = top[cols_top]
+        if "%" in top.columns:
+            top["%"] = top["%"].apply(lambda x: f"{float(x):.1f}%")
+        if "RECEBIDO" in top.columns:
+            top["RECEBIDO"] = top["RECEBIDO"].apply(brl)
+        if "PERDA" in top.columns:
+            top["PERDA"] = top["PERDA"].apply(brl)
+        if "EMPRESA" in top.columns:
+            top["EMPRESA"] = top["EMPRESA"].astype(str).str.title()
 
-    st.markdown('<div style="height:10px"></div>', unsafe_allow_html=True)
-    st.markdown('<div class="section-title">🏆 Top 5</div>', unsafe_allow_html=True)
-    st.dataframe(top, use_container_width=True, hide_index=True)
+        st.markdown('<div style="height:10px"></div>', unsafe_allow_html=True)
+        st.markdown('<div class="section-title">🏆 Top 5</div>', unsafe_allow_html=True)
+        st.dataframe(top, use_container_width=True, hide_index=True)
 
     st.markdown("</div>", unsafe_allow_html=True)
 
